@@ -4,31 +4,269 @@ output: html_notebook
 ---
 
 
-```{r}
+```{r, results='hide'}
 source('../utils.R')
 # options(httr_oob_default=TRUE) 
 # token <- gs_auth(new_user = TRUE, cache = FALSE)
 # saveRDS(token, file = "../googlesheets_token.rds")
 # KEY <- readRDS("../googlesheets_token.rds")
-
 # Direct url download
-library(glue)
 download_path <- 'https://drive.google.com/uc?export=download&id={id}'
-
 ```
 
 
-#Morbilidad
+
+# 1 Infraestructura Agua-Saneamiento-Higiene (Acceso y Calidad)
+## 1.1 Infraestructura de Establecimientos Escolares
+Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
+
 ```{r}
-morb <- c('2018'='10OpSGUXy2ASy96tfIdh9FWfrMs-00Xfu',
-  '2017'='1CUB5cyW7DN1ll6h8v8emRuWzrrZr26JX',
-  '2016'='1-vu5tkqqXQ4rfH0yPLkaeQUEBhJdeuvs')
+
+# Caracterización demográfica escolar
+# Preguntas Base
+
+id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
+url <-glue::glue(download_path)
+  
+caracterizacion <- read_excel_url(url) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>%
+  select(cve_ent, cve_mun, cve_loc, 
+         cct, latitud, longitud, 
+         cvenivel, grupos, aluhombres, alumujeres, alutotal)
+
+# Servicio básico de agua para consumo
+# Preguntas Base:
+## ¿Cuál es la principal fuente de agua para consumo de la escuela? [Red de Agua potable, pozo, pipa, noria, otro.]
+## ¿Dispone la escuela actualmente de agua para consumo procedente de la fuente principal?
+## ¿Cómo almacena el agua dentro del plantel? [Red Hidráulica Interna, Cisterna, Tinaco, Tanque Elevado, 
+id <- '1dOG55CECykpd52HxFHUhn9h9D-KRgG1i'
+url <-glue::glue(download_path)
+consumo <- read_csv(url) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>%
+  select(cve_ent, cve_mun, cve_loc,
+         cct, 
+         # Fuente de agua
+         aguaredpublica, 
+         aguapozo, 
+         aguapipa, 
+         aguanoria, 
+         aguaotro, 
+         aguaotrodetalle, 
+          
+         # Distancia pozo o fosa
+         distanciapozofosa, 
+          
+         # Potabilizacion
+         sistemapotabilizacion, 
+          
+         # Almacenamiento de Agua
+         aguaredinterna, 
+         aguacisterna, 
+         aguatinaco, 
+         aguatanqueelevado, 
+         aguaabasotro, 
+         aguaabasotrodetalle)
+
+
+# Servicio básico de saneamiento
+
+# Preguntas Base:
+## ¿De qué tipo de inodoros o letrinas disponen los alumnos y alumnas? [Zinodoros de arrastre hidráulico, Letrinas de pozo excavado con losa, Letrinas de compostaje, Letrinas de pozo excavado sin losa, Letrinas colgantes, Letrinas de cubo, No hay inodoros ni letrinas]
+## ¿Cuántos de los inodoros o letrinas para los alumnos y alumnas son utilizables (disponibles, en funcionamiento y privados) actualmente?
+## ¿Los inodoros o las letrinas están separados por sexo? [Sí, No]
+
+id <- '1dOG55CECykpd52HxFHUhn9h9D-KRgG1i'
+saneamiento <- read_csv(glue::glue(download_path),locale = readr::locale(encoding = "latin1")) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>% 
+  dplyr::rename(nom_muni=desmunicipio) %>% 
+  select(cve_ent, cve_mun, cve_loc,
+         cct, 
+         drenajecolector, drenajefosaseptica, drenajeotro, drenajeotrodetalle) %>%
+  mutate(letrina = ifelse(str_detect(tolower(drenajeotrodetalle), 'letrina',negate = 0),1,0))
+# saneamiento %>% dplyr::count(drenajeotrodetalle,letrina) %>%arrange(desc(letrina))
+
+
+# Servicio básico de higiene
+# Preguntas Base:
+# ¿Dispone la escuela de instalaciones para el lavado de manos? [Sí, No]
+# ¿Disponen actualmente de agua y jabón las instalaciones para el lavado de manos? [Sí, No]
+
+
+# Infraestructura:
+infraestructura <- left_join(left_join(caracterizacion, consumo), saneamiento)
+```
+## 1.2 Infraestructura de Establecimientos de Salud
+Fuente: 
+```{r}
+# Infraestructura de Establecimientos de Salud
+# Servicios básicos de agua
+# Servicios básicos de saneamiento
+# Servicios básicos de higiene
+# Servicios básicos de gestión de residuos hospitalarios
+# Prácticas básicas de limpieza hospitalaria
+
+```
+
+## 1.3 Infraestructura en viviendas
+Fuente:  CONEVAL
+```{r}
+# Caracterización demográfica escolar
+# Preguntas Base
+id <- '1PPG_5yDMMrJ4E5Q_Gp3mbawb50gu7y1L'
+url <-glue::glue(download_path)
+WASH <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>%
+  mutate(cve_mun = str_extract(clave_municipio,'[0-9]{3}$'), 
+         cve_ent = str_pad(clave_entidad,2,'left','0')) %>%
+  select(cve_ent, cve_mun,
+         poblacion,
+         # Acceso a los servicios básicos en la vivienda
+         ic_sbv, ic_sbv_pob, 
+         # Calidad y espacios de la vivienda
+         ic_cv_pob, ic_cv)
+```
+
+
+
+# 2 Educación
+## 2.1 Aprendizaje: Desempeño / Aprovechamiento Escolar
+```{r}
+
+# evaluación de aprendizaje estandarizada - representativa
+id <- '1sQ7aq4co1Yf1QlfLZ7pj_g50-xddjPIg'
+url <-glue::glue(download_path)
+aprendizaje <- read_excel_url(url, skip = 3) %>%
+  dplyr::rename(cct=...4,grado_evaluado=...9,
+                       lenguaje_comunicacion='LEGUAJE Y COMUNICACIÓN...14',
+                       matematicas='MATEMÁTICAS...15',
+                       lenguaje_comunicacion_rep='LEGUAJE Y COMUNICACIÓN...16',
+                       matematicas_rep='MATEMÁTICAS...17' ) %>%
+  select(cct,lenguaje_comunicacion, matematicas, 
+         lenguaje_comunicacion_rep, matematicas_rep)
+  
+# Indicadores Municipales de Rezago educativo
+# Rezago educativo
+id <- '1PPG_5yDMMrJ4E5Q_Gp3mbawb50gu7y1L'
+url <-glue::glue(download_path)
+rezago <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>%
+  mutate(cve_mun = str_extract(clave_municipio,'[0-9]{3}$'), 
+         cve_ent = str_pad(clave_entidad,2,'left','0')) %>%
+  select(cve_ent, cve_mun,
+         poblacion,
+         # Rezago educativo promedio en el hogar
+         ic_rezedu, ic_rezedu_pob)
+
+# Indicador de Ausentismo
+
+```
+
+## 2.2 Oferta: Calidad de Oferta Educativa
+```{r}
+```
+
+# 3 Riesgos Hidrometeorológicos y Sanitarios
+## 3.1 Calidad de Agua
+```{r}
+# Calidad del agua de uso y consumo humano. (COFEPRIS)
+# Arsenico
+# Coespris
+id <- '1eHVCsrOJLC33cu8fkIHyWWt7WYfC_mdh'
+url <-glue::glue(download_path)
+arsenico <- read_excel_url(url, sheet = 'arsenico') %>%
+  mutate(cve_loc = str_pad(`No. Localidad`,4,'left','0'),
+         cve_mun = str_pad(`No. Municipio`,3,'left','0'),
+         cve_ent = '08') %>%
+  select(cve_ent, cve_loc, cve_mun, Poblacion)
+
+# fluor
+# Coespris
+fluor <- read_excel_url(url, sheet = 'fluor') %>%
+  mutate(cve_loc = str_pad(`No. Localidad`,4,'left','0'),
+         cve_mun = str_pad(`No. Municipio`,3,'left','0'),
+         cve_ent = '08') %>%
+  select(cve_ent, cve_loc, cve_mun, Poblacion)
+
+
+
+```
+## 3.2 Amenazas Hidrometeorológicas
+```{r}
+id <- "1yVynmOxqER3eqKTJPJXe3M47G5VzaKiT"
+url <-glue::glue(download_path)
+riesgo_sequia <- read_csv(url) %>%
+  mutate(cve_mun = str_extract(cve_mpio,'[0-9]{3}$'), 
+         cve_mun = str_pad(cve_mun,3,'left','0'), 
+         cve_ent = str_pad(as.character(id_edo),2,'left','0')) %>% 
+  dplyr::rename(riesgo_sequia=Riesgo) %>% 
+  select(cve_ent, cve_mun, riesgo_sequia)
+
+```
+## 3.3 índice pluvimetrico
+```{r}
+```
+
+
+# 4 Salud
+## 4.1. - Morbilidad y Mortalidad
+Información obtenida de Secretaría de Salud del Estado
+```{r}
+morb <- c('2018'='10OpSGUXy2ASy96tfIdh9FWfrMs-00Xfu', 
+          '2017'='1CUB5cyW7DN1ll6h8v8emRuWzrrZr26JX',
+          '2016'='1-vu5tkqqXQ4rfH0yPLkaeQUEBhJdeuvs')
+
 morbilidad <- tibble()
 for (each in morb) {
   id <- each[[1]]
-  db <- read_csv(glue::glue(download_path))  
-  db["year"]<-names(morb)[match(each,morb)]  
+  db <- read_csv(glue::glue(download_path),locale = readr::locale(encoding = "latin1"))  
+  db["year"]<-names(morb)[match(each,morb)]
+  print(names(morb)[match(each,morb)])
   morbilidad <- bind_rows(morbilidad, db)
 }
+
+morbilidad %>% dplyr::count(DES_DIAGNO)
+
+morbilidad_consolidado <- morbilidad %>%
+  dplyr::rename(cve_ent=CVE_ESTADO, casos=SumaDeNO_TOTALES,
+                cve_unidad=CVE_UNIDAD, cve_jurisd=CVE_JURISD) %>%
+  mutate(cve_muni=str_c(cve_ent, CVE_MUNICI)) %>%
+  select(year, cve_muni, cve_jurisd, cve_unidad, DES_DIAGNO, casos) %>% 
+  filter(DES_DIAGNO %in% c("Desnutrición leve",
+                           "Desnutrición moderada","Desnutrición severa",
+                           "Cólera","Difteria")) %>%
+  distinct() %>% 
+  spread(key = DES_DIAGNO, value = casos)
+
+morbilidad_consolidado
 ```
+
+
+# 5 Socioeconómico
+## 5.1 - Alimentación
+```{r}
+```
+## 5.2 - Salud
+```{r}
+```
+## 5.3 - Reducción de Riesgos
+```{r}
+```
+## 5.4 - Otros-SeeCH
+```{r}
+```
+
+
+#6. - Socioeconómico	
+## 6.1 - Marginación
+```{r}
+```
+## 6.2 - Pobreza
+```{r}
+```
+
+
 

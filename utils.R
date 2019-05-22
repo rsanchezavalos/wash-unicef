@@ -17,3 +17,12 @@ if(Reduce(res, f = sum)/length(paquetes) < 1) stop('Some packages could not be l
 library(dotenv)
 #### Functions
 
+read_excel_url <- function(url, skip=0, sheet=''){
+  GET(url, write_disk(tf <- tempfile(fileext = ".xlsx")))
+  if (sheet=='') {
+    readxl::read_excel(tf,skip = skip)  
+  } else  {
+    readxl::read_excel(tf,skip = skip, sheet = sheet)
+  }
+}
+
