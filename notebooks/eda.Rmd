@@ -104,12 +104,35 @@ infraestructura <- left_join(left_join(caracterizacion, consumo), saneamiento)
 ## 1.2 Infraestructura de Establecimientos de Salud
 Fuente: 
 ```{r}
-# Infraestructura de Establecimientos de Salud
-# Servicios básicos de agua
-# Servicios básicos de saneamiento
+id <- '1Blnl0YwQCbpDcUxau2ViRpYkjzO_n8O5'
+url <-glue::glue(download_path)
+infra_salud <- read_csv(url,
+                        locale = readr::locale(encoding = "latin3")) %>%
+  mutate(clues = as.character(CLUES), 
+         cve_mun = str_pad(`Clave Municipio`,3,'left','0'), 
+         cve_ent = str_pad(`Clave Estado`,2,'left','0')) %>% 
+  select(clues, cve_ent, cve_mun,
+         nombre_clues=`Nombre de la Unidad`,
+         tipo_establecimiento=`Tipo de Establecimiento`,
+         tipologia=`Tipología`,
+         # Servicios básicos de agua
+         agua_potable=`żCuenta con agua potable?`,
+         fuente_red_municipal=`żCuenta con red municipal?`,
+         fuente_pozo=`żCuenta con pozo?`,
+         fuente_cisterna=`żCuenta con cisterna?`,
+         fuente_otra= `żCuenta con otra fuente?`,
+         # Servicios básicos de saneamiento
+         drenaje=`żCuenta con drenaje?`,
+         banios_publicos=`Número de Baños Públicos`,
+         banios_personal=`Número de Baños para el personal`,
+         banios_pacientes=`Número de Baños para pacientes`,
+         banios_discapacitados=`Número de Baños para discapacitados`)
+infra_salud
+
 # Servicios básicos de higiene
 # Servicios básicos de gestión de residuos hospitalarios
 # Prácticas básicas de limpieza hospitalaria
+
 
 ```
 
