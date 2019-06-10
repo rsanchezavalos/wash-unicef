@@ -1,0 +1,52 @@
+---
+title: "05_intervenciones"
+output: html_document
+---
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+source('../../utils.R')
+# options(httr_oob_default=TRUE) 
+# token <- gs_auth(new_user = TRUE, cache = FALSE)
+# saveRDS(token, file = "../googlesheets_token.rds")
+# KEY <- readRDS("../googlesheets_token.rds")
+# Direct url download
+download_path <- 'https://drive.google.com/uc?export=download&id={id}'
+```
+
+
+# 5  Intervenciones sociales
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Datos/Intervenciones/DIF_intervención_UNICEF
+# Nivel: cve_muni
+
+id <- "1EJ5XxqY02ViuO5Tc7lmyt5uDBZsq45Wi"
+url <-glue::glue(download_path)
+dif_comedores <- read_excel_url(url) %>%
+  select(cct=CCT,
+         dif_modalidad=Modalidad,
+         turno=Turno,
+         dif_beneficiarios=`Benef. MAY-JUN-JUL`)
+```
+
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Datos/Intervenciones/Junta_de_Aguas_INVENTARIO_POI_12_02_2019_CALIDAD DEL AGUA
+# Nivel: cve_muni
+
+id <- "19Wak5SB86p_QAqlBcIoP6mDeBq0xWVtx"
+url <-glue::glue(download_path)
+junta_aguas_poi <- read_excel_url(url) %>%
+  mutate(cve_ent="08",
+         cve_mun=str_pad(`NUM. MPIO.`, 2, "left", "0"),
+         cve_loc=str_pad(`NUM. LOC`, 4,"left","0")) %>% 
+  select(contains("cve_"),
+         poi_beneficiarios=`POBLACION BENEFICIADA`,
+         poi_operacion=`SIN OPERAR`,
+         poi_estado=`ESTADO DE LA OPERACIÓN`) %>% 
+  filter(!is.na(poi_beneficiarios)) %>% 
+  mutate(cve_mun = na.locf(cve_mun))
+
+junta_aguas_poi
+```
+

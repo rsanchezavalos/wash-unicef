@@ -1,0 +1,232 @@
+---
+title: "01_infraestructura"
+output: html_document
+---
+
+# 1 Infraestructura Agua-Saneamiento-Higiene (Acceso y Calidad)
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+source('../../utils.R')
+# options(httr_oob_default=TRUE) 
+# token <- gs_auth(new_user = TRUE, cache = FALSE)
+# saveRDS(token, file = "../googlesheets_token.rds")
+# KEY <- readRDS("../googlesheets_token.rds")
+# Direct url download
+download_path <- 'https://drive.google.com/uc?export=download&id={id}'
+```
+
+## 1.1 Infraestructura de Establecimientos Escolares
+
+### 1.1.1 Servicio básico de agua para consumo
+
+Preguntas Base:
+- ¿Cuál es la principal fuente de agua para consumo de la escuela? [Red de Agua potable, pozo, pipa, noria, otro.]
+- ¿Dispone la escuela actualmente de agua para consumo procedente de la fuente principal?
+- ¿Cómo almacena el agua dentro del plantel? [Red Hidráulica Interna, Cisterna, Tinaco, Tanque Elevado
+
+
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
+# Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
+# Nivel: cct
+
+id <- '1dOG55CECykpd52HxFHUhn9h9D-KRgG1i'
+url <-glue::glue(download_path)
+consumo <- read_csv(url) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>%
+  select(cve_ent, cve_mun, cve_loc,
+         cct, 
+         
+         # Abastecimiento de Agua al Plantel
+         aguaredpublica,  # Red de Agua Potable
+         aguapozo, # Pozo
+         aguapipa, # Pipa
+         aguanoria, # Noria
+         aguaotro, # Otro
+         aguaotrodetalle, # Otro, detalle
+          
+         # Distancia pozo o fosa
+         distanciapozofosa, # Distancia entre pozo y fosa séptica
+          
+         # Potabilizacion
+         sistemapotabilizacion, # ¿Cuenta con algún sistema de potabilización?
+          
+         # Abastecimiento Interno / Almacenamiento
+         aguaredinterna, # Red Hidráulica Interna
+         aguacisterna, # Cisterna
+         aguatinaco, # Tinaco
+         aguatanqueelevado, # Tanque Elevado 
+         aguaabasotro, # Otro
+         aguaabasotrodetalle) # Otro, detalle
+
+
+#Nombre archivo: 
+# Datos/Infraestructura/SEECH_Centros de Trabajo Educación Básica con Coordenadas 20190215-1427.xls
+# Ojo - Base de datos desactualizada
+# Nivel: cct
+
+id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
+bebederos <- read_excel_url(glue::glue(download_path)) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>%  
+  select(cct, cve_mun, cve_loc, cve_ent,
+         Bebederos_Buenas, Bebederos_Malas, Bebederos_Regulares, Bebederos_Total)
+```
+
+### 1.1.2 Servicio básico de saneamiento
+
+Preguntas Base:
+- ¿De qué tipo de inodoros o letrinas disponen los alumnos y alumnas? [Zinodoros de arrastre hidráulico, Letrinas de pozo excavado con losa, Letrinas de compostaje, Letrinas de pozo excavado sin losa, Letrinas colgantes, Letrinas de cubo, No hay inodoros ni letrinas]
+- ¿Cuántos de los inodoros o letrinas para los alumnos y alumnas son utilizables (disponibles, en funcionamiento y privados) actualmente?
+- ¿Los inodoros o las letrinas están separados por sexo? [Sí, No]
+
+Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
+Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
+# Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
+# Nivel: cct
+
+id <- '1dOG55CECykpd52HxFHUhn9h9D-KRgG1i'
+saneamiento <- read_csv(glue::glue(download_path),locale = readr::locale(encoding = "latin1")) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>% 
+  dplyr::rename(nom_muni=desmunicipio) %>% 
+  select(cve_ent, cve_mun, cve_loc,
+         cct, 
+         # Tipo de Descarga Sanitaria
+         drenajecolector, # Conexión al conector Municipal
+         drenajefosaseptica, #  Fosa Séptica
+         drenajeotro,  # Otro
+         drenajeotrodetalle) %>%  # Otro, detalle
+  mutate(letrina = ifelse(str_detect(tolower(drenajeotrodetalle), 'letrina',negate = 0),1,0))
+# saneamiento %>% dplyr::count(drenajeotrodetalle,letrina) %>%arrange(desc(letrina))
+
+
+
+#Nombre archivo: 
+# Datos/Infraestructura/SEECH_Centros de Trabajo Educación Básica con Coordenadas 20190215-1427.xls
+# Ojo - Base de datos desactualizada
+# Nivel: cct
+
+id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
+letrinas <- read_excel_url(glue::glue(download_path)) %>%
+  mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
+         cve_loc = str_pad(cvelocalidad,4,'left','0'),
+         cve_ent = '08') %>%  
+  select(cct, 
+         cve_mun, cve_loc, cve_ent,
+         agua, 
+         ServSan_Total, # Número total de Servicios Sanitarios 
+         Letrinas_Total)# Número total de Letrinas
+
+```
+
+### 1.1.3 Servicio básico de higiene
+Preguntas Base:
+- ¿Dispone la escuela de instalaciones para el lavado de manos? [Sí, No]
+- ¿Disponen actualmente de agua y jabón las instalaciones para el lavado de manos? [Sí, No]
+
+No identificado
+
+
+## 1.2 Infraestructura de Establecimientos de Salud
+Fuente: 
+
+### 1.2.1 -Servicios básicos de agua
+
+### 1.2.2 Servicios básicos de saneamiento
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Datos/Infraestructura/Salud_SINERHIAS_nacional_Recursos_Salud_2017.csv
+# Nivel: CLUES
+
+id <- '1Blnl0YwQCbpDcUxau2ViRpYkjzO_n8O5'
+url <-glue::glue(download_path)
+infra_salud <- read_csv(url,
+                        locale = readr::locale(encoding = "latin3")) %>%
+  mutate(clues = as.character(CLUES), 
+         cve_mun = str_pad(`Clave Municipio`,3,'left','0'), 
+         cve_ent = str_pad(`Clave Estado`,2,'left','0')) %>% 
+  select(clues, cve_ent, cve_mun, cve_loc=`Clave Localidad`,
+         nombre_clues=`Nombre de la Unidad`,
+         tipo_establecimiento=`Tipo de Establecimiento`,
+         tipologia=`Tipología`,
+         ### 1.2.1 -Servicios básicos de agua
+         agua_potable=`żCuenta con agua potable?`,
+         fuente_red_municipal=`żCuenta con red municipal?`,
+         fuente_pozo=`żCuenta con pozo?`,
+         fuente_cisterna=`żCuenta con cisterna?`,
+         fuente_otra= `żCuenta con otra fuente?`,
+         ### 1.2.2 Servicios básicos de saneamiento
+         drenaje=`żCuenta con drenaje?`,
+         banios_publicos=`Número de Baños Públicos`,
+         banios_personal=`Número de Baños para el personal`,
+         banios_pacientes=`Número de Baños para pacientes`,
+         banios_discapacitados=`Número de Baños para discapacitados`)
+infra_salud
+
+```
+
+### 1.2.3 Servicios básicos de higiene
+No identificado
+### 1.2.4 Servicios básicos de gestión de residuos hospitalarios
+No identificado
+### 1.2.5 Prácticas básicas de limpieza hospitalaria
+No identificado
+
+
+## 1.3 - Infraestructura en Comunidad y Vivienda
+Fuente:  CONEVAL
+### 1.3.1 - Acceso a los servicios básicos en la vivienda
+### 1.3.2 - Calidad y espacios de la vivienda
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Datos/Socioeconómico/CONEVAL_indicadores de pobreza municipal, 2015.csv
+# Nivel: cve_muni
+id <- '1PPG_5yDMMrJ4E5Q_Gp3mbawb50gu7y1L'
+url <-glue::glue(download_path)
+infra_muni <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>%
+  mutate(cve_mun = str_extract(clave_municipio,'[0-9]{3}$'), 
+         cve_ent = str_pad(clave_entidad,2,'left','0')) %>%
+  select(cve_ent, cve_mun,
+         poblacion,
+         # Acceso a los servicios básicos en la vivienda
+         ic_sbv, ic_sbv_pob, 
+         # Calidad y espacios de la vivienda
+         ic_cv_pob, ic_cv)
+```
+
+
+# Unión y Bases finales - Dimensión Infraestructura
+
+### 1.1 Final: Infraestructura de Establecimientos Escolares
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+# Nivel: cct
+infra_escolar <- left_join(consumo,bebederos, 
+                                        by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
+  left_join(saneamiento, by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
+  left_join(letrinas, by=c("cve_ent","cve_mun","cve_loc","cct"))
+infra_escolar %>%  write_csv("../../data/chihuahua/1_1_infra_escolar_cct.csv")
+```
+
+### 1.2 Final: Infraestructura de Establecimientos de Salud
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+infra_salud %>%  
+  write_csv("../../data/chihuahua/1_2_infra_salud_clues.csv")
+```
+
+### 1.3 Final: Infraestructura en Comunidad y Vivienda
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+infra_muni%>%  
+  write_csv("../../data/chihuahua/1_3_infra_muni_cve_muni.csv")
+```

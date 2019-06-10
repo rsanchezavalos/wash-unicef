@@ -1,0 +1,86 @@
+---
+title: "03 Riesgos Hidrometeorológicos y Sanitarios"
+output: html_document
+---
+
+# 3 Riesgos Hidrometeorológicos y Sanitarios
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+source('../../utils.R')
+# options(httr_oob_default=TRUE) 
+# token <- gs_auth(new_user = TRUE, cache = FALSE)
+# saveRDS(token, file = "../googlesheets_token.rds")
+# KEY <- readRDS("../googlesheets_token.rds")
+# Direct url download
+download_path <- 'https://drive.google.com/uc?export=download&id={id}'
+```
+
+## 3.1 Calidad de Agua
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#Nombre archivo: 
+# Chihuahua/Datos/Riesgos/coespris_comunidades arsenico fluor.xlsx
+# Fuente: Coespris
+# Nivel: localidad
+id <- '1eHVCsrOJLC33cu8fkIHyWWt7WYfC_mdh'
+url <-glue::glue(download_path)
+arsenico <- read_excel_url(url, sheet = 'arsenico') %>%
+  mutate(cve_loc = str_pad(`No. Localidad`,4,'left','0'),
+         cve_mun = str_pad(`No. Municipio`,3,'left','0'),
+         cve_ent = '08',
+         arsenico=TRUE) %>%
+  select(cve_ent, cve_loc, cve_mun, pob_afect_arsenico = Poblacion)
+
+# fluor
+# Coespris
+fluor <- read_excel_url(url, sheet = 'fluor') %>%
+  mutate(cve_loc = str_pad(`No. Localidad`,4,'left','0'),
+         cve_mun = str_pad(`No. Municipio`,3,'left','0'),
+         cve_ent = '08',
+         fluor=TRUE) %>%
+  select(cve_ent, cve_loc, cve_mun, pob_afect_fluor = Poblacion)
+
+```
+## 3.2 Amenazas Hidrometeorológicas
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+
+#Nombre archivo: 
+# Chihuahua/Datos/Riesgos/CONAGUA_riesgo_por_sequia_2015
+# Fuente: Conagua
+# Nivel: cve_mun
+id <- "1yVynmOxqER3eqKTJPJXe3M47G5VzaKiT"
+url <-glue::glue(download_path)
+riesgo_sequia <- read_csv(url) %>%
+  mutate(cve_mun = str_extract(cve_mpio,'[0-9]{3}$'), 
+         cve_mun = str_pad(cve_mun,3,'left','0'), 
+         cve_ent = str_pad(as.character(id_edo),2,'left','0')) %>% 
+  dplyr::rename(riesgo_sequia=Riesgo) %>% 
+  select(cve_ent, cve_mun, riesgo_sequia)
+
+#Nombre archivo: 
+# Chihuahua/Datos/Riesgos/cenapred_app_municipios.csv
+# Fuente: CENAPRED
+# Nivel: cve_mun
+id <- "1y6Rn45a1igU5ma8PMiXuKjGMf4gyqtby"
+url <-glue::glue(download_path)
+riesgo_inundacion <- read_csv(url) %>%
+  mutate(cve_mun = str_extract(cve_muni,'[0-9]{3}$'), 
+         cve_mun = str_pad(cve_mun,3,'left','0'), 
+         cve_ent = str_pad(as.character(cve_ent),2,'left','0')) %>% 
+  select(cve_ent, cve_mun, riesgo_indundacion=GP_Inundac)
+
+```
+
+
+
+# Unión y Bases finales - Dimensión Riesgos
+### 3.1 Final -  Calidad de Agua
+```{r}
+calidad_agua <- dplyr::full_join(arsenico, fluor, 
+                                 by = c("cve_ent", "cve_loc", "cve_mun"))
+calidad_agua %>% write_csv("../../data/chihuahua/3_1_calidad_agua_cve_loc.csv")
+```
+
+### 3.2 Final - Amenazas Hidrometeorológicas
+```{r}
+amenaza_hidro <- full_join(riesgo_sequia, riesgo_inundacion, by = c("cve_ent", "cve_mun"))
+amenaza_hidro %>% write_csv("../../data/chihuahua/3_2_amenaza_hidro_cve_mun.csv")
+```

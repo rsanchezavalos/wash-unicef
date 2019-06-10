@@ -1,0 +1,18 @@
+---
+title: "06_socioeconomico"
+output: html_document
+---
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+source('../../utils.R')
+# options(httr_oob_default=TRUE) 
+# token <- gs_auth(new_user = TRUE, cache = FALSE)
+# saveRDS(token, file = "../googlesheets_token.rds")
+# KEY <- readRDS("../googlesheets_token.rds")
+# Direct url download
+download_path <- 'https://drive.google.com/uc?export=download&id={id}'
+```
+
+# 6 Socioeconómico
+```{r}
+```
