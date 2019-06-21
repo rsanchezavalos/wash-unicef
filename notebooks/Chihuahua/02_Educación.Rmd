@@ -5,7 +5,7 @@ output: html_document
 
 # 2 Educación
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 source('../../utils.R')
 # options(httr_oob_default=TRUE) 
 # token <- gs_auth(new_user = TRUE, cache = FALSE)
@@ -17,8 +17,8 @@ download_path <- 'https://drive.google.com/uc?export=download&id={id}'
 
 
 Fuente:  SeeCH
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
-
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
+# 4,219 
 #Nombre archivo: 
 # Chihuahua/Datos/
 # Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
@@ -33,30 +33,37 @@ url <-glue::glue(download_path)
 preescolar <- read_excel_url(url, skip = 3)
 names(preescolar) <- names(preescolar) %>% 
   clean_names(prefix = 'pre_') 
-preescolar <- preescolar %>% dplyr::rename(
-  reg = pre_reg,
-  cct = pre_cv_cct,
-  nombrect = pre_nombrect,
-  nivel = pre_nivel,
-  entidad = pre_entidad,
-  cve_mpio = pre_cve_mpio,
-  municipio = pre_municipio,
-  cve_loc = pre_cve_loc,
-  localidad = pre_localidad,
-  domicilio = pre_domicilio,
+preescolar <- preescolar %>%
+  distinct() %>%
+  dplyr::rename(cct = pre_cv_cct,
+                cve_turno=pre_cve_turno) %>%   
+  mutate(cve_mun = str_pad(pre_cve_mpio,3,'left','0'), 
+         cve_loc = str_pad(pre_cve_loc,4,'left','0'),
+         cve_ent = '08') %>% 
+  dplyr::rename(
+#   reg = pre_reg,
+#   cct = pre_cv_cct,
+#   nombrect = pre_nombrect,
+#   # nivel = pre_nivel,
+#   entidad = pre_entidad,
+#   cve_mpio = pre_cve_mpio,
+#   municipio = pre_municipio,
+#   cve_loc = pre_cve_loc,
+#   localidad = pre_localidad,
+#   domicilio = pre_domicilio,
   total_hom = pre_total_hom,
   total_muj = pre_total_muj,
   población_indígena_hom = pre_población_indígena_hom,
   población_indígena_muj = pre_población_indígena_muj,
   # abandono_hom = pre_abandono_hom,
-  # abandono_muj  = pre_abandono_muj
+  # abandono_muj  = pre_abandono_muj,
   # eficiencia_terminal_hom = pre_eficiencia_terminal_hom,
   # eficiencia_terminal_muj = pre_eficiencia_terminal_muj,
-  pct_docente_hom = `pre_%_docente_hom`,
+  pre_pct_docente_hom = `pre_%_docente_hom`,
   tot_docente_muj = pre_tot_docente_muj,
   tot_docente_hom = pre_tot_docente_hom,
-  tot_directivo_c_gpo_hom = `pre_tot_directivo_c/gpo_hom`,
-  tot_directivo_c_gpo_muj = `pre_tot_directivo_c/gpo_muj`,
+  pre_tot_directivo_c_gpo_hom = `pre_tot_directivo_c/gpo_hom`,
+  pre_tot_directivo_c_gpo_muj = `pre_tot_directivo_c/gpo_muj`,
   tot_prof_educ_fisica_hom = pre_tot_prof_educ_fisica_hom,
   tot_prof_educ_artisticas_muj = pre_tot_prof_educ_artisticas_muj,
   tot_prof_educ_artisticas_hom = pre_tot_prof_educ_artisticas_hom,
@@ -64,9 +71,12 @@ preescolar <- preescolar %>% dplyr::rename(
   tot_prof_idiomas_hom = pre_tot_prof_idiomas_hom,
   # tot_prof_activ_tecnol_muj = pre_tot_prof_activ_tecnol_muj,
   # tot_prof_activ_tecnol_hom = pre_tot_prof_activ_tecnol_hom,
-  pct_docente_con_licenciatura_o_más = `pre_%_docente_con_licenciatura_o_más`
+  pre_pct_docente_con_licenciatura_o_más = `pre_%_docente_con_licenciatura_o_más`
 )
 
+vars<-c("pre_reg","pre_nombrect","pre_entidad","pre_cve_mpio","pre_municipio","pre_cve_loc","pre_localidad","pre_domicilio")
+preescolar <- preescolar %>% 
+  dplyr::select(-one_of(vars))
 
 
 
@@ -76,17 +86,24 @@ url <-glue::glue(download_path)
 primaria <- read_excel_url(url, skip = 3)
 names(primaria) <- names(primaria) %>%
   clean_names(prefix = 'prim_')
-primaria <- primaria %>% dplyr::rename(
-  reg = prim_reg,
-  cct = prim_cv_cct,
-  nombrect = prim_nombrect,
-  nivel = prim_nivel,
-  entidad = prim_entidad,
-  cve_mpio = prim_cve_mpio,
-  municipio = prim_municipio,
-  cve_loc = prim_cve_loc,
-  localidad = prim_localidad,
-  domicilio = prim_domicilio,
+primaria <- primaria %>%
+  distinct() %>%
+  dplyr::rename(cct = prim_cv_cct,
+                cve_turno=prim_cve_turno) %>%   
+  mutate(cve_mun = str_pad(prim_cve_mpio,3,'left','0'), 
+         cve_loc = str_pad(prim_cve_loc,4,'left','0'),
+         cve_ent = '08') %>% 
+  dplyr::rename(
+#   reg = prim_reg,
+#   cct = prim_cv_cct,
+#   nombrect = prim_nombrect,
+#   # nivel = prim_nivel,
+#   entidad = prim_entidad,
+#   cve_mpio = prim_cve_mpio,
+#   municipio = prim_municipio,
+#   cve_loc = prim_cve_loc,
+#   localidad = prim_localidad,
+#   domicilio = prim_domicilio,
   total_hom = prim_tot_hom,
   total_muj = prim_tot_muj,
   población_indígena_hom = prim_población_indígena_hom,
@@ -109,6 +126,10 @@ primaria <- primaria %>% dplyr::rename(
   tot_prof_activ_tecnol_hom = prim_tot_prof_activ_tecnol_hom,
   pct_docente_con_licenciatura_o_más = `prim_%_docente_con_licenciatura_o_más`
 )
+vars<-c("prim_reg","prim_nombrect","prim_entidad","prim_cve_mpio",
+        "prim_municipio","prim_cve_loc","prim_localidad","prim_domicilio")
+primaria <- primaria %>% 
+  dplyr::select(-one_of(vars))
 
 # Secundaria
 id <- educacion["secundaria"]
@@ -116,17 +137,24 @@ url <-glue::glue(download_path)
 secundaria <- read_excel_url(url, skip = 3)
 names(secundaria) <- names(secundaria) %>%
   clean_names(prefix = 'sec_')
-secundaria <- secundaria %>% dplyr::rename(
-  reg = sec_reg,
-  cct = sec_cv_cct,
-  nombrect = sec_nombrect,
-  nivel = sec_nivel,
-  entidad = sec_entidad,
-  cve_mpio = sec_cve_mpio,
-  municipio = sec_municipio,
-  cve_loc = sec_cve_loc,
-  localidad = sec_localidad,
-  domicilio = sec_domicilio,
+secundaria <- secundaria %>%
+  distinct() %>%
+  dplyr::rename(cct = sec_cv_cct,
+                cve_turno=sec_cve_turno) %>% 
+  mutate(cve_mun = str_pad(sec_cve_mpio,3,'left','0'), 
+         cve_loc = str_pad(sec_cve_loc,4,'left','0'),
+         cve_ent = '08') %>% 
+  dplyr::rename(
+  # reg = sec_reg,
+  # cct = sec_cv_cct,
+  # nombrect = sec_nombrect,
+  # # nivel = sec_nivel,
+  # entidad = sec_entidad,
+  # cve_mpio = sec_cve_mpio,
+  # municipio = sec_municipio,
+  # cve_loc = sec_cve_loc,
+  # localidad = sec_localidad,
+  # domicilio = sec_domicilio,
   total_hom = sec_tot_muj,
   total_muj = sec_tot_hom,
   población_indígena_hom = sec_población_indígena_hom,
@@ -149,13 +177,25 @@ secundaria <- secundaria %>% dplyr::rename(
   tot_prof_activ_tecnol_hom = sec_tot_prof_activ_tecnol_hom,
   pct_docente_con_licenciatura_o_más = `sec_%_docente_con_licenciatura_o_más`
 )
+vars<-c("sec_reg","sec_nombrect","sec_entidad","sec_cve_mpio","sec_municipio","sec_cve_loc","sec_localidad","sec_domicilio")
+secundaria <- secundaria %>% 
+  dplyr::select(-one_of(vars))
 
+escuelas <- full_join(preescolar, primaria,
+             by = c("cct", "cve_mun", "cve_loc","cve_turno" )) %>% 
+  full_join(secundaria,
+             by = c("cct", "cve_mun", "cve_loc","cve_turno")) %>% 
+  # Nos quedamos por ahora solo con cve_turno 1
+  filter(cve_turno==1) %>% 
+  mutate(cve_ent = "08")
+
+# 4219
+
+# 4,940
 escuelas <- bind_rows(preescolar, primaria) %>% 
-  bind_rows(secundaria) %>% 
-  mutate(cve_ent = '08',
-         cve_mun = str_pad(cve_mpio,3,'left','0'),
-         cve_loc = str_pad(cve_loc,4,'left','0'))
+  bind_rows(secundaria) 
 
+escuelas
 ```
 
 ## 2.1 Desempeño y Aprovechamiento Escolar
@@ -165,23 +205,26 @@ escuelas <- bind_rows(preescolar, primaria) %>%
 - Número de Alumnos hombres y mujeres por rango escolar y edad. (Inicial 0-2, Preescolar 3 a 5, Primaria 6 a 11, Secundaria 12 a 14, Educación Media Superior 15 a 17)
 - población indígena por sexo
 - población con discapacidad (tipos) - rango escolar. (Inicial 0-2, Preescolar 3 a 5, Primaria 6 a 11, Secundaria 12 a 14, Educación Media Superior 15 a 17) - Ceguera, Baja Visión, Sordera, HIPOACUSIA, SORDOCEGUERA, DISCAP. MOTRIZ, INTELECTUAL, PSICOSOCIAL, 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 caracterizacion <- escuelas %>% 
   select(cct, cve_ent, cve_mun, cve_loc, 
-         total_muj, total_hom, contains("años"),
-         población_indígena_hom,
-         población_indígena_muj,
+         contains("total_muj"), 
+         contains("total_hom"), 
+         contains("años"),
+         contains("población_indígena_hom"),
+         contains("población_indígena_muj"),
          contains("ceguera"),
          contains("baja_vision"),
          contains("sordera"),
          contains("hipoacusia"),
          contains("discap"),
          contains("dific"))
+caracterizacion
 ```
 
 
 ### 2.1.2 evaluación de aprendizaje estandarizada
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 # evaluación de aprendizaje estandarizada - representativa
 #Nombre archivo: 
 
@@ -195,7 +238,7 @@ url <-glue::glue(download_path)
 aprendizaje_basica <- read_excel_url(url, skip = 3) %>%
   dplyr::rename(cve_ent = ...1,
                 cct=...4,
-                basica_turno=...5,
+                turno=...5,
                 basica_grado_evaluado=...9,
                 basica_lenguaje_comunicacion_rep='LEGUAJE Y COMUNICACIÓN...16',
                 basica_matematicas_rep='MATEMÁTICAS...17',
@@ -205,7 +248,7 @@ aprendizaje_basica <- read_excel_url(url, skip = 3) %>%
                 basica_lenguaje_c_IV = 'IV...26',
                 basica_lenguaje_c_I_nacional = 'I...31',
                 basica_lenguaje_c_II_nacional = 'II...32',
-                basica_lenguaje_c_III_nacional = 'III...33',
+                basica_lenguaje_c_III_nacional = 'III...33',sip todos
                 basica_lenguaje_c_IV_nacional = 'IV...34',
                 basica_matematicas_I = "I...39",
                 basica_matematicas_II = "II...40",
@@ -216,10 +259,11 @@ aprendizaje_basica <- read_excel_url(url, skip = 3) %>%
                 basica_matematicas_III_nacional = "III...49",
                 basica_matematicas_IV_nacional = "IV...50"
                 ) %>%
-  select(cct,basica_turno,basica_grado_evaluado,
+  select(cct,turno,basica_grado_evaluado,
          basica_lenguaje_comunicacion_rep, basica_matematicas_rep,
-         contains("basica"))
-
+         contains("basica")) %>% 
+  # Nos quedamos por ahora solo con cve_turno 1
+  filter(turno=='MATUTINO')
 
 # Superior
 # Fuente: SEP
@@ -230,7 +274,7 @@ url <-glue::glue(download_path)
 aprendizaje_superior <- read_excel_url(url, skip = 4) %>%
   dplyr::rename(cve_ent = ...1,
                 cct=...3,
-                superior_turno=...5,
+                turno=...5,
                 # superior_grado_evaluado=...9,
                 superior_lenguaje_comunicacion_rep=...18,
                 superior_matematicas_rep=...19,
@@ -251,23 +295,25 @@ aprendizaje_superior <- read_excel_url(url, skip = 4) %>%
                 superior_matematicas_III_nacional = "III...51",
                 superior_matematicas_IV_nacional = "IV...52") %>%
   select(cct,
-         superior_turno,
+         turno,
          superior_lenguaje_comunicacion_rep, 
          superior_matematicas_rep,
-         contains("superior"))
+         contains("superior")) %>% 
+  # Nos quedamos por ahora solo con cve_turno 1
+  filter(turno=='MATUTINO')
 
 ```
 
 ### 2.1.3 Trayectoria Escolar
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 
 trayectoria <- escuelas %>% 
   select(cct, cve_ent, cve_mun, cve_loc,
-         abandono_hom,
-         abandono_muj,
-         eficiencia_terminal_hom,
-         eficiencia_terminal_muj,
+         contains("abandono_hom"),
+         contains("abandono_muj"),
+         contains("eficiencia_terminal_hom"),
+         contains("eficiencia_terminal_muj"),
          contains("extraedad") # por año
   )
 
@@ -276,7 +322,7 @@ trayectoria <- escuelas %>%
 
 ### 2.1.4 Indicadores Municipales de Rezago educativo
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
   
 # Indicadores Municipales de Rezago educativo
 # Rezago educativo
@@ -300,7 +346,7 @@ rezago_municipal <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>
 - Porcentaje de docentes hombres 
 - Tipo de docente: director con grupo, académico o especial (Educación Física, Artes y Tecnología)
 -  % DOCENTE CON LICENCIATURA O MÁS
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 
 perfil <- escuelas %>% 
   select(cct, cve_ent, cve_mun, cve_loc,
@@ -325,7 +371,7 @@ perfil <- escuelas %>%
 # Unión y Bases finales - Dimensión Educación
 
 ### 2.1 Final - Desempeño y Aprovechamiento Escolar
-```{r}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 aprendizaje <- left_join(aprendizaje_basica, aprendizaje_superior, by="cct")
 desempeño <- left_join(caracterizacion,trayectoria,
                        by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
@@ -335,7 +381,7 @@ rezago_municipal %>% write_csv("../../data/chihuahua/2_1_rezago_municipal_cve_mu
 ```
 
 ### 2.2 Final - Agentes y recursos
-```{r}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 nrow(perfil)
 perfil %>% write_csv("../../data/chihuahua/2_2_agentes_recursos_cct.csv")
 ```
