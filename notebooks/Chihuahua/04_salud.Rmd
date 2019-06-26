@@ -5,10 +5,10 @@ output: html_document
 
 # Cambiar los links a numérico. 
 # Agregar a csv una columna de array de las organizaciones.
-
+- Construir tasa de morbi y morta relacionada por 100 mil
 # 4 Salud
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 source('../../utils.R')
 # options(httr_oob_default=TRUE) 
 # token <- gs_auth(new_user = TRUE, cache = FALSE)
@@ -20,9 +20,9 @@ download_path <- 'https://drive.google.com/uc?export=download&id={id}'
 
 Obtenemos población para poder calcular tasas por 100 mil habitantes
 - Ahorita lo ejecutamos con la población total
-```{r}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
-# Datos/Socioeconómico/CONEVAL_indicadores de pobreza municipal, 2015.csv
+# Datos/Socioeconómico/
 # Nivel: cve_muni
 id <- '12vWfJVI7LAh0aW7h8Yxggu4mNfg8Ywjk'
 url <-glue::glue(download_path)
@@ -38,7 +38,7 @@ names(poblacion) <- names(poblacion) %>%
 ## 4.1. - Morbilidad y Mortalidad
 ### 4.1.1 Morbilidad
 Información obtenida de Secretaría de Salud del Estado
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 morb <- c('2018'='10OpSGUXy2ASy96tfIdh9FWfrMs-00Xfu', 
           '2017'='1CUB5cyW7DN1ll6h8v8emRuWzrrZr26JX',
           '2016'='1-vu5tkqqXQ4rfH0yPLkaeQUEBhJdeuvs')
@@ -60,50 +60,61 @@ aux <- read_csv(glue::glue(download_path),
                 casos=SumaDeNO_TOTALES) %>% 
   mutate(DES_DIAGNO = str_to_lower(DES_DIAGNO))
 
+lista_enf_rel <- c("ascariasis",
+               "desnutrición leve",
+               "desnutrición moderada",
+               "desnutrición severa",
+               "escabiosis",
+               "fiebre tifoidea",
+               "hepatitis aguda tipo a",
+               "otras salmonelosis",
+               "paludismo por plasmodium falciparum",
+               "paludismo por plasmodium vivax",
+               "paratifoidea")
+
 morbilidad <- aux %>%
   select(cve_ent, cve_muni, DES_DIAGNO, casos) %>% 
-  filter(DES_DIAGNO %in% c("ascariasis",
-                           "desnutrición leve",
-                           "desnutrición moderada",
-                           "desnutrición severa",
-                           "escabiosis",
-                           "fiebre tifoidea",
-                           "hepatitis aguda tipo a",
-                           "otras salmonelosis",
-                           "paludismo por plasmodium falciparum",
-                           "paludismo por plasmodium vivax",
-                           "paratifoidea"
-                           )) %>%
+  filter(DES_DIAGNO %in% lista_enf_rel) %>%
   group_by(cve_ent, cve_muni, DES_DIAGNO) %>% 
   dplyr::summarise(casos = sum(casos, na.rm = T)) %>% 
-  spread(key = DES_DIAGNO, value = casos) 
+  spread(key = DES_DIAGNO, value = casos) %>%
+  mutate(morbilidad_relacionada = rowSums(.[3:(length(lista_enf_rel)+2)],
+                                          na.rm = T))
 
 names(morbilidad) <- names(morbilidad) %>%
   clean_names()
+
+morbilidad %>% 
+  dplyr::rename(cve_mun=cve_muni) %>% 
+  select(cve_ent, cve_mun, morbilidad_relacionada) %>% 
+  write_rds("../../data/chihuahua/4_1_morbilidad_cve_muni.rds")
 ```
 
 ### 4.1.2 Mortalidad
-```{r}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/
 # Nivel: cve_muni
 
-id <-"1xNCoeQe1eiYPj7qqrWyV8YhCZYbipLqM"
-mortalidad <- read_csv(glue::glue(download_path))  %>%
-   mutate(`Municipio residencia` = na.locf(`Municipio residencia`))
-colnames(mortalidad) <- clean_names(names = colnames(mortalidad)) 
+lista_enf_rel <- c("anemias",
+                   "desnutrición y otras deficiencias nutricionales",
+                   "encefalitis viral transmitida por artrópodos",
+                   "hepatitis viral")
 
-mortalidad <- mortalidad %>% 
+id <-"1xNCoeQe1eiYPj7qqrWyV8YhCZYbipLqM"
+aux <- read_csv(glue::glue(download_path))  %>%
+   mutate(`Municipio residencia` = na.locf(`Municipio residencia`))
+colnames(aux) <- clean_names(names = colnames(aux)) 
+mortalidad <- aux %>% 
   mutate(casos = hombre_total + mujer_total,
          DES_DIAGNO = str_to_lower(grupo)) %>% 
   dplyr::select(municipio_residencia, DES_DIAGNO, casos) %>% 
-  filter(DES_DIAGNO %in% c("anemias",
-                           "desnutrición y otras deficiencias nutricionales",
-                           "encefalitis viral transmitida por artrópodos",
-                           "hepatitis viral")) %>%
+  filter(DES_DIAGNO %in% lista_enf_rel) %>%
   group_by(municipio_residencia, DES_DIAGNO) %>% 
   dplyr::summarise(casos = sum(casos, na.rm = T)) %>% 
-  spread(key = DES_DIAGNO, value = casos)
+  spread(key = DES_DIAGNO, value = casos) %>%
+  mutate(mortalidad_relacionada = rowSums(.[2:length(lista_enf_rel) + 1], na.rm = T))
+
 
 # Misma base pero con cve_muni
 id <- "1fWmeFS7atMZGyXlpT2JzbIHjEH1sDLnT"
@@ -114,20 +125,19 @@ mortalidad <- read_csv(glue::glue(download_path)) %>%
   mutate(casos = hombre_total + mujer_total,
          DES_DIAGNO = str_to_lower(grupo)) %>% 
   dplyr::select(cve_ent, cve_muni, DES_DIAGNO, casos) %>% 
-  filter(DES_DIAGNO %in% c("anemias",
-                           "desnutrición y otras deficiencias nutricionales",
-                           "encefalitis viral transmitida por artrópodos",
-                           "hepatitis viral")) %>%
+  filter(DES_DIAGNO %in% lista_enf_rel) %>%
   group_by(cve_ent, cve_muni, DES_DIAGNO) %>% 
   dplyr::summarise(casos = sum(casos, na.rm = T)) %>% 
-  spread(key = DES_DIAGNO, value = casos)
-
-
-
-write_csv(mortalidad, "../../data/chihuahua/4_2_mortalidad.csv")
+  spread(key = DES_DIAGNO, value = casos)%>%
+  dplyr::rename(cve_mun=cve_muni) %>% 
+  mutate(mortalidad_relacionada = rowSums(.[3:(length(lista_enf_rel) + 2)], na.rm = T))
 
 names(mortalidad) <- names(mortalidad) %>%
   clean_names()
+
+mortalidad %>% 
+  select(cve_ent, cve_mun, mortalidad_relacionada) %>% 
+  write_rds("../../data/chihuahua/4_2_mortalidad_cve_muni.rds")
 
 ```
 

@@ -2,7 +2,7 @@
 title: "05_intervenciones"
 output: html_document
 ---
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 source('../../utils.R')
 # options(httr_oob_default=TRUE) 
 # token <- gs_auth(new_user = TRUE, cache = FALSE)
@@ -14,25 +14,49 @@ download_path <- 'https://drive.google.com/uc?export=download&id={id}'
 
 
 # 5  Intervenciones sociales
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+## 5.1 Alimentación
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/Intervenciones/DIF_intervención_UNICEF
-# Nivel: cve_muni
-
+# Nivel: cct
 id <- "1EJ5XxqY02ViuO5Tc7lmyt5uDBZsq45Wi"
 url <-glue::glue(download_path)
 dif_comedores <- read_excel_url(url) %>%
-  select(cct=CCT,
+  mutate(cct=str_replace(CCT, " ","")) %>% 
+  filter(nchar(cct)==10) %>% 
+  dplyr::rename(turno=Turno) %>%
+  filter(turno=="MATUTINO") %>%
+  select(cct,
          dif_modalidad=Modalidad,
-         turno=Turno,
-         dif_beneficiarios=`Benef. MAY-JUN-JUL`)
+         dif_beneficiarios=`Benef. MAY-JUN-JUL`) 
+dif_comedores
+```
+
+## 5.2 Salud - Talleres
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
+#Nombre archivo: 
+# Datos/Intervenciones/DIF_intervención_UNICEF
+# Nivel: cct
+
+id <- "1wp6dlIEBHgPrig-mnKjMn1Ly5ujAySqd"
+url <-glue::glue(download_path)
+salud_talleres <- read_excel_url(url,skip = 5) %>%
+  select(cct=`CCT
+(CLAVE
+ESCUELA)`, clues=CLUES) %>% 
+  filter(!is.na(clues) & !is.na(cct)) %>% 
+  mutate(cct = str_remove(cct, regex(".* |")),
+         clues = str_remove(clues, regex(".* |")),
+         talleres=1)
+salud_talleres
 ```
 
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+## Reducción de Riesgos
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/Intervenciones/Junta_de_Aguas_INVENTARIO_POI_12_02_2019_CALIDAD DEL AGUA
-# Nivel: cve_muni
+# Nivel: cve_loc
 
 id <- "19Wak5SB86p_QAqlBcIoP6mDeBq0xWVtx"
 url <-glue::glue(download_path)
@@ -46,7 +70,21 @@ junta_aguas_poi <- read_excel_url(url) %>%
          poi_estado=`ESTADO DE LA OPERACIÓN`) %>% 
   filter(!is.na(poi_beneficiarios)) %>% 
   mutate(cve_mun = na.locf(cve_mun))
-
 junta_aguas_poi
+```
+
+
+# Unión y Bases finales - Dimensión Intervenciones
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+
+dif_comedores %>% 
+  write_rds("../../data/chihuahua/5_1_alimentacion_cct.rds")
+
+salud_talleres %>% 
+  write_rds("../../data/chihuahua/5_2_talleres_clues_cct.rds")
+
+junta_aguas_poi %>% 
+  write_rds("../../data/chihuahua/5_3_riesgo_cve_loc.rds") 
+
 ```
 

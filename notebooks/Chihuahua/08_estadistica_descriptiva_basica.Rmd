@@ -1,0 +1,48 @@
+---
+title: "estadísticas_basicas"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+source('../../utils.R')
+library(DataExplorer)
+linea_de_base <- read_rds("../../data/linea_de_base.rds")
+DataExplorer::introduce(linea_de_base)
+plot_intro(linea_de_base)
+```
+
+```{r}
+dim(linea_de_base)
+```
+```{r}
+# summary(linea_de_base)
+```
+
+
+# Gráfica de Valores faltantes por variable
+```{r}
+plot_missing(linea_de_base)  + theme_grey(base_size = 5)
+```
+
+## Generales
+
+Según - INEE, 2018
+Número de escuelas o planteles (2015-2016) 
+Preescolar 2259
+Primaria 2834
+Secundaria 966
+Media Superior 570
+- 6629
+
+Número de alumnos (2015-2016)
+Preescolar 123156
+Primaria 429694
+Secundaria 190865 
+Media superior 149637
+
+Número de docentes (2015-2016)
+Preescolar 5557
+Primaria 16908 
+Secundaria 10599
+Media Superior 7882
+

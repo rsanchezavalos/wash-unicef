@@ -3,9 +3,14 @@ title: "01_infraestructura"
 output: html_document
 ---
 
+# Preguntas
+- significado de cveturno para hacer el filtro
+- Hay un error con cct - 08EML0009O se encuentra en más de una localidad.
+
+
 # 1 Infraestructura Agua-Saneamiento-Higiene (Acceso y Calidad)
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 source('../../utils.R')
 # options(httr_oob_default=TRUE) 
 # token <- gs_auth(new_user = TRUE, cache = FALSE)
@@ -26,7 +31,7 @@ Preguntas Base:
 
 
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
 # Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
@@ -39,7 +44,7 @@ consumo <- read_csv(url) %>%
          cve_loc = str_pad(cvelocalidad,4,'left','0'),
          cve_ent = '08') %>%
   select(cve_ent, cve_mun, cve_loc,
-         cct, 
+         cct,cveturno, 
          
          # Abastecimiento de Agua al Plantel
          aguaredpublica,  # Red de Agua Potable
@@ -61,25 +66,76 @@ consumo <- read_csv(url) %>%
          aguatinaco, # Tinaco
          aguatanqueelevado, # Tanque Elevado 
          aguaabasotro, # Otro
-         aguaabasotrodetalle) # Otro, detalle
+         aguaabasotrodetalle) %>% # Otro, detalle
+  # Filtramos por cveturno 1 ya que es infraestructura y debería de coincidir
+  filter(cveturno==1) %>% distinct() 
+
+consumo %>% 
+  select(cve_ent:cct, aguaredpublica:aguaotrodetalle) %>% 
+  gather(aguaredpublica:aguaotro,
+                   key = "tipo", 
+                   value = "tiene") %>% 
+  mutate(tiene = as.numeric(tiene)) %>% 
+  dplyr::group_by(cct) %>% 
+  dplyr::summarise(n = sum(tiene, na.rm = T)) %>% 
+  arrange(desc(n)) %>% filter(n==2)
 
 
+consumo <- consumo %>%
+  # Limpieza:
+  # Ya que existen algunas escuelas con más de una fuente reportada
+  # de agua se limpia de la siguiente forma para poder categorizar la variable
+  mutate(abastecimiento = if_else(aguaredpublica==1, "Red Pública",
+                                  if_else(aguapozo==1, "Pozo",
+                                          if_else(aguapipa==1, "Pipa",
+                                                  if_else(aguanoria==1, "Noria",
+                                                          if_else(aguaotro==1, "otro","Sin respuesta"),
+                                                          "otro"),
+                                                  "otro"),
+                                          "otro"),
+                                  "otro")) %>% 
+  # Limpieza:
+  # Ya que existen algunas escuelas con más de un tipo de almacenamiento reportado
+  # se limpia de la siguiente forma para poder categorizar la variable  
+    mutate(almacenamiento = if_else(aguaredinterna==1, "Red Hidráulica Interna",
+                                  if_else(aguacisterna==1, "Cisterna",
+                                          if_else(aguatinaco==1, "Tinaco",
+                                                  if_else(aguatanqueelevado==1, "Tanque Elevado",
+                                                          if_else(aguaabasotro==1, "otro","Sin respuesta"),
+                                                          "otro"),
+                                                  "otro"),
+                                          "otro"),
+                                  "otro")) %>% 
+  select(cve_ent:cct, abastecimiento, # aguaotrodetalle
+         sistemapotabilizacion,
+         almacenamiento) #aguaabasotrodetalle
+
+nrow(consumo)
+length(unique(consumo$cct))
+consumo
+```
+
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/Infraestructura/SEECH_Centros de Trabajo Educación Básica con Coordenadas 20190215-1427.xls
 # Ojo - Base de datos desactualizada
 # Nivel: cct
-
 id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
 bebederos <- read_excel_url(glue::glue(download_path)) %>%
   mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
          cve_loc = str_pad(cvelocalidad,4,'left','0'),
          cve_ent = '08') %>%  
-  select(cct, cve_mun, cve_loc, cve_ent,
-         Bebederos_Buenas, Bebederos_Malas, Bebederos_Regulares, Bebederos_Total)
+  select(cve_ent, cve_mun, cve_loc, cct,
+         Bebederos_Buenas, Bebederos_Malas, Bebederos_Regulares, Bebederos_Total) %>% 
+  distinct()
+bebederos
+nrow(bebederos)
+length(unique(bebederos$cct))
+
 ```
 
-### 1.1.2 Servicio básico de saneamiento
 
+### 1.1.2 Servicio básico de saneamiento
 Preguntas Base:
 - ¿De qué tipo de inodoros o letrinas disponen los alumnos y alumnas? [Zinodoros de arrastre hidráulico, Letrinas de pozo excavado con losa, Letrinas de compostaje, Letrinas de pozo excavado sin losa, Letrinas colgantes, Letrinas de cubo, No hay inodoros ni letrinas]
 - ¿Cuántos de los inodoros o letrinas para los alumnos y alumnas son utilizables (disponibles, en funcionamiento y privados) actualmente?
@@ -88,14 +144,17 @@ Preguntas Base:
 Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
 Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Chihuahua/Datos/Infraestructura/Seech-inmuebles-servicios-agua.csv
 # Fuente: Servicios Educativos del Estado de Chihuahua (Seech)
 # Nivel: cct
 
 id <- '1dOG55CECykpd52HxFHUhn9h9D-KRgG1i'
-saneamiento <- read_csv(glue::glue(download_path),locale = readr::locale(encoding = "latin1")) %>%
+saneamiento <- read_csv(glue::glue(download_path),
+                        locale = readr::locale(encoding = "latin1")) %>%
+  #Limpieza: Filtramos por cveturno 1 ya que es infraestructura y debería de coincidir
+  filter(cveturno==1) %>% distinct() %>%
   mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
          cve_loc = str_pad(cvelocalidad,4,'left','0'),
          cve_ent = '08') %>% 
@@ -107,16 +166,41 @@ saneamiento <- read_csv(glue::glue(download_path),locale = readr::locale(encodin
          drenajefosaseptica, #  Fosa Séptica
          drenajeotro,  # Otro
          drenajeotrodetalle) %>%  # Otro, detalle
-  mutate(letrina = ifelse(str_detect(tolower(drenajeotrodetalle), 'letrina',negate = 0),1,0))
-# saneamiento %>% dplyr::count(drenajeotrodetalle,letrina) %>%arrange(desc(letrina))
+  mutate(letrina = ifelse(str_detect(tolower(drenajeotrodetalle),
+                                     'letrina',negate = 0),1,0)) %>% 
+  # Limpieza:
+  # se limpia la información sobre tipo de descarga sanitaria 
+  # para obtener una variable categórica
+    mutate(descarga_sanitaria = if_else(drenajecolector==1,
+                                    " Conexión al conector Municipal",
+                                  if_else(drenajefosaseptica==1, "Fosa Séptica",
+                                          if_else(letrina==1, "Letrina", 
+                                                  if_else(drenajeotro==1,
+                                                          "otro",
+                                                          "Sin respuesta"),
+                                                  "otro"),
+                                          "otro"),
+                                  "otro")) %>% 
+  select(cve_ent, cve_mun, cve_loc, cct,
+         descarga_sanitaria) # drenajeotrodetalle
+saneamiento
+nrow(saneamiento)
+length(unique(saneamiento$cct))
 
 
+tmp <- saneamiento %>%  dplyr::count(cct) %>% 
+  filter(n==2)
+saneamiento %>% 
+  filter(cct %in% tmp$cct) 
+```
+
+
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 
 #Nombre archivo: 
 # Datos/Infraestructura/SEECH_Centros de Trabajo Educación Básica con Coordenadas 20190215-1427.xls
 # Ojo - Base de datos desactualizada
 # Nivel: cct
-
 id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
 letrinas <- read_excel_url(glue::glue(download_path)) %>%
   mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
@@ -124,10 +208,15 @@ letrinas <- read_excel_url(glue::glue(download_path)) %>%
          cve_ent = '08') %>%  
   select(cct, 
          cve_mun, cve_loc, cve_ent,
-         agua, 
+         cuenta_con_agua=agua, 
          ServSan_Total, # Número total de Servicios Sanitarios 
-         Letrinas_Total)# Número total de Letrinas
+         Letrinas_Total) %>% # Número total de Letrinas
+    distinct() 
 
+
+letrinas
+nrow(letrinas)
+length(unique(letrinas$cct))
 ```
 
 ### 1.1.3 Servicio básico de higiene
@@ -135,25 +224,25 @@ Preguntas Base:
 - ¿Dispone la escuela de instalaciones para el lavado de manos? [Sí, No]
 - ¿Disponen actualmente de agua y jabón las instalaciones para el lavado de manos? [Sí, No]
 
-No identificado
-
+Datos No identificados
 
 ## 1.2 Infraestructura de Establecimientos de Salud
-Fuente: 
+Fuente: Secretaría de Salud
 
 ### 1.2.1 -Servicios básicos de agua
 
 ### 1.2.2 Servicios básicos de saneamiento
 
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/Infraestructura/Salud_SINERHIAS_nacional_Recursos_Salud_2017.csv
-# Nivel: CLUES
+# Nivel: CLUES -  22,559 establecimientos.
 
 id <- '1Blnl0YwQCbpDcUxau2ViRpYkjzO_n8O5'
 url <-glue::glue(download_path)
 infra_salud <- read_csv(url,
                         locale = readr::locale(encoding = "latin3")) %>%
+  distinct() %>%
   mutate(clues = as.character(CLUES), 
          cve_mun = str_pad(`Clave Municipio`,3,'left','0'), 
          cve_ent = str_pad(`Clave Estado`,2,'left','0')) %>% 
@@ -169,10 +258,10 @@ infra_salud <- read_csv(url,
          fuente_otra= `żCuenta con otra fuente?`,
          ### 1.2.2 Servicios básicos de saneamiento
          drenaje=`żCuenta con drenaje?`,
-         banios_publicos=`Número de Baños Públicos`,
-         banios_personal=`Número de Baños para el personal`,
-         banios_pacientes=`Número de Baños para pacientes`,
-         banios_discapacitados=`Número de Baños para discapacitados`)
+         baños_publicos=`Número de Baños Públicos`,
+         baños_personal=`Número de Baños para el personal`,
+         baños_pacientes=`Número de Baños para pacientes`,
+         baños_discapacitados=`Número de Baños para discapacitados`)
 infra_salud
 
 ```
@@ -189,7 +278,7 @@ No identificado
 Fuente:  CONEVAL
 ### 1.3.1 - Acceso a los servicios básicos en la vivienda
 ### 1.3.2 - Calidad y espacios de la vivienda
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 #Nombre archivo: 
 # Datos/Socioeconómico/CONEVAL_indicadores de pobreza municipal, 2015.csv
 # Nivel: cve_muni
@@ -210,23 +299,31 @@ infra_muni <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>%
 # Unión y Bases finales - Dimensión Infraestructura
 
 ### 1.1 Final: Infraestructura de Establecimientos Escolares
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 # Nivel: cct
-infra_escolar <- left_join(consumo,bebederos, 
+infra_escolar <- full_join(consumo,bebederos, 
                                         by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
-  left_join(saneamiento, by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
-  left_join(letrinas, by=c("cve_ent","cve_mun","cve_loc","cct"))
-infra_escolar %>%  write_csv("../../data/chihuahua/1_1_infra_escolar_cct.csv")
+  full_join(saneamiento, by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
+  full_join(letrinas, by=c("cve_ent","cve_mun","cve_loc","cct"))
+infra_escolar %>%  write_rds("../../data/chihuahua/1_1_infra_escolar_cct.rds")
+
+infra_escolar
+nrow(infra_escolar)
+length(unique(infra_escolar$cct))
+
+# Consumo - 1
+# saneamiento - 
+# letrinas - 
 ```
 
 ### 1.2 Final: Infraestructura de Establecimientos de Salud
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 infra_salud %>%  
-  write_csv("../../data/chihuahua/1_2_infra_salud_clues.csv")
+  write_rds("../../data/chihuahua/1_2_infra_salud_clues.rds")
 ```
 
 ### 1.3 Final: Infraestructura en Comunidad y Vivienda
-```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+```{r, warning=FALSE, echo=TRUE, message=FALSE}
 infra_muni%>%  
-  write_csv("../../data/chihuahua/1_3_infra_muni_cve_muni.csv")
+  write_rds("../../data/chihuahua/1_3_infra_muni_cve_muni.rds")
 ```

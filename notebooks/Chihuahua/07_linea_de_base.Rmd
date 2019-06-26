@@ -1,0 +1,138 @@
+---
+title: "linea_de_base"
+output: html_document
+---
+
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+rm(list = ls())
+source('../../utils.R') 
+```
+
+# Upload
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+path<-"../../data/chihuahua/"
+file_list <- list.files(path)
+for (i in 1:length(file_list)){
+   oname = file_list[[i]]
+   outname = str_c('db_',str_remove(oname, ".rds"))
+   assign(outname, read_rds(str_c(path, oname)))
+}
+
+```
+
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+# Infraestructura
+
+# Transformación
+db_1_2_infra_salud_mun <- db_1_2_infra_salud_clues %>%
+  select(cve_ent, cve_mun, agua_potable:baños_discapacitados) %>% 
+  group_by(cve_ent, cve_mun) %>% 
+  summarise_each(funs(sum(., na.rm = T)/n())) %>% 
+  filter(!is.na(cve_ent))
+
+#  01 Infraestructura
+infraestructura <- left_join(db_1_1_infra_escolar_cct, db_1_2_infra_salud_mun,
+                             by = c("cve_ent", "cve_mun")) %>% 
+  left_join(db_1_3_infra_muni_cve_muni, by = c("cve_ent", "cve_mun"))
+
+infraestructura %>%
+  write_rds("../../data/01_infraestructura.rds")
+
+plot_missing(infraestructura)  + theme_grey(base_size = 5)
+col_infraestructura <- colnames(infraestructura)
+```
+
+
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+# 02 Educación
+educacion <- full_join(db_2_1_desempeño_cct, db_2_2_agentes_recursos_cct,
+                       by=c("cct","cve_ent","cve_mun","cve_loc")) %>% 
+  left_join(db_2_3_rezago_municipal_cve_muni, by=c("cve_ent", "cve_mun")) %>% 
+  select(-poblacion)
+educacion %>%
+  write_rds("../../data/02_educacion.rds")
+plot_missing(educacion)  + theme_grey(base_size = 5)
+col_educacion <- colnames(educacion)
+```
+
+```{r}
+# 03 Riesgos
+# localidad
+db_3_1_calidad_agua_cve_mun <- db_3_1_calidad_agua_cve_loc %>% 
+  group_by(cve_ent, cve_mun) %>% 
+  dplyr::summarise(pob_afect_arsenico=sum(pob_afect_arsenico, na.rm = T),
+            pob_afect_fluor=sum(pob_afect_fluor, na.rm = T))
+
+riesgos <- db_3_1_calidad_agua_cve_mun %>% 
+  full_join(db_3_2_amenaza_hidro_cve_mun,
+            by=c("cve_ent","cve_mun"))
+
+riesgos %>%
+  write_rds("../../data/03_riesgos.rds")
+plot_missing(riesgos)  + theme_grey(base_size = 5)
+col_riesgos <- colnames(riesgos)
+```
+
+```{r}
+# 04 Salud
+salud <- full_join(db_4_1_morbilidad_cve_muni, db_4_2_mortalidad_cve_muni,
+                   by=c("cve_ent","cve_mun"))
+salud %>%
+  write_rds("../../data/04_salud.rds")
+plot_missing(salud)  + theme_grey(base_size = 5)
+col_salud <- colnames(salud)
+```
+
+```{r}
+# 05 intervención
+# Nivel localidad
+db_5_3_riesgo_cve_mun <- db_5_3_riesgo_cve_loc %>% 
+  group_by(cve_ent, cve_mun) %>% 
+  dplyr::summarise(poi_beneficiarios=sum(poi_beneficiarios, na.rm = T),
+                   poi_num=sum(poi_operacion, na.rm = T)) %>% 
+  mutate(poi_operacion=if_else(poi_num>=1,1,0))
+
+
+intervencion <- db_5_1_alimentacion_cct %>%
+  full_join(select(db_5_2_talleres_clues_cct, cct, talleres),
+            by=c("cct")) %>%
+  # obtener cve_ent y cve_mun
+  full_join(select(infraestructura, cct, cve_ent, cve_mun), by ="cct") %>% 
+  left_join(db_5_3_riesgo_cve_mun, by=c("cve_ent", "cve_mun")) %>% 
+  distinct()
+intervencion %>%
+  write_rds("../../data/05_intervencion.rds")
+
+plot_missing(intervencion)  + theme_grey(base_size = 5)
+col_intervencion <- colnames(intervencion)
+```
+
+
+# Base Final
+```{r, results='hide', warning=FALSE, echo=FALSE, message=FALSE}
+#rm(list = ls())
+
+infraestructura <- read_rds("../../data/01_infraestructura.rds")
+educacion <- read_rds("../../data/02_educacion.rds")
+riesgos <- read_rds("../../data/03_riesgos.rds")
+salud <- read_rds("../../data/04_salud.rds")
+intervencion <- read_rds("../../data/05_intervencion.rds")
+
+# linea_de_base
+linea_de_base <- full_join(infraestructura, educacion, by=c("cve_ent","cve_mun","cct", "cve_loc")) %>% 
+  left_join(riesgos, by=c("cve_ent","cve_mun")) %>% 
+  left_join(salud, by=c("cve_ent","cve_mun")) %>% 
+  full_join(intervencion, by=c("cve_ent","cve_mun", "cct")) %>% 
+  select(colnames(infraestructura),
+         setdiff(colnames(educacion), c("cve_ent", "cve_mun", "cve_loc", "cct")),
+         setdiff(colnames(riesgos), c("cve_ent", "cve_mun")),
+         setdiff(colnames(salud), c("cve_ent", "cve_mun")),
+         setdiff(colnames(intervencion), c("cve_ent", "cve_mun", "cve_loc", "cct"))) 
+
+linea_de_base %>% 
+  write_rds("../../data/linea_de_base.rds")
+
+
+```
