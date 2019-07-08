@@ -33,9 +33,12 @@ preescolar <- read_excel_url(url, skip = 3)
 names(preescolar) <- names(preescolar) %>% 
   clean_names(prefix = '') 
 preescolar <- preescolar %>%
-  filter(turno=="MATUTINO") %>% 
   distinct() %>%
   mutate(cct=cv_cct,
+         nom_turno= if_else(cve_turno==1,"MATUTINO",
+                            if_else(cve_turno==2,"VESPERTINO",
+                                    if_else(cve_turno==3,"NOCTURNO",
+                                            if_else(cve_turno==4,"DISCONTINUO", 'NA')))),
          cve_mun = str_pad(cve_mpio,3,'left','0'), 
          cve_loc = str_pad(cve_loc,4,'left','0'),
          cve_ent = '08',
@@ -43,6 +46,7 @@ preescolar <- preescolar %>%
          extraedad_muj_3o = NaN,
          nivel = "preescolar") %>% 
   select(cve_loc, cve_mun, cve_ent, cct,nivel,
+         cve_turno, nom_turno,
          contains("población_indígena_hom"),
          contains("población_indígena_muj"),
          contains("tot"),
@@ -56,14 +60,18 @@ primaria <- read_excel_url(url, skip = 3)
 names(primaria) <- names(primaria) %>%
   clean_names(prefix = '')
 primaria <- primaria %>%
-  filter(turno=="MATUTINO") %>%   
   distinct() %>%
   mutate(cct=cv_cct,
          cve_mun = str_pad(cve_mpio,3,'left','0'), 
          cve_loc = str_pad(cve_loc,4,'left','0'),
          cve_ent = '08',
+         nom_turno= if_else(cve_turno==1,"MATUTINO",
+                            if_else(cve_turno==2,"VESPERTINO",
+                                    if_else(cve_turno==3,"NOCTURNO",
+                                            if_else(cve_turno==4,"DISCONTINUO", 'NA')))),
          nivel = "primaria") %>% 
   select(cve_loc, cve_mun, cve_ent, cct, nivel,
+         nom_turno, cve_turno,
          total_hom = tot_hom,
          total_muj = tot_muj,         
          contains("población_indígena_hom"),
@@ -82,13 +90,17 @@ names(secundaria) <- names(secundaria) %>%
   clean_names(prefix = '')
 secundaria <- secundaria %>%
   distinct() %>%
-  filter(turno=="MATUTINO") %>%   
   mutate(cct=cv_cct,
+         nom_turno= if_else(cve_turno==1,"MATUTINO",
+                            if_else(cve_turno==2,"VESPERTINO",
+                                    if_else(cve_turno==3,"NOCTURNO",
+                                            if_else(cve_turno==4,"DISCONTINUO", 'NA')))),
          cve_mun = str_pad(cve_mpio,3,'left','0'), 
          cve_loc = str_pad(cve_loc,4,'left','0'),
          cve_ent = '08',
          nivel = "secundaria") %>% 
   select(cve_loc, cve_mun, cve_ent, cct, nivel,
+         cve_turno, nom_turno,
          total_hom = tot_hom,
          total_muj = tot_muj,         
          contains("población_indígena_hom"),
@@ -103,6 +115,7 @@ escuelas <- bind_rows(preescolar, primaria) %>%
   bind_rows(secundaria) %>% 
   select(cve_loc, cve_mun, cve_ent, cct,
          nivel,
+         cve_turno, nom_turno,
          total_hom,
          total_muj,
          # Grupos de Edad
@@ -137,13 +150,14 @@ escuelas <- bind_rows(preescolar, primaria) %>%
 ```{r, warning=FALSE, echo=TRUE, message=FALSE}
 caracterizacion <- escuelas %>% 
   select(cct, cve_ent, cve_mun, cve_loc, 
+         cve_turno, nom_turno,
          contains("total_muj"), 
          contains("total_hom"), 
          contains("años"),
          contains("población_indígena_hom"),
          contains("población_indígena_muj"),
          contains("ceguera"),
-         contains("baja_vision"),
+         contains("baja_vision"),re
          contains("sordera"),
          contains("hipoacusia"),
          contains("discap"),
@@ -156,13 +170,18 @@ caracterizacion <- escuelas %>%
          tasa_discapacidad = suma_discapacidad/(total_muj + total_hom),
          poblacion_indigena = población_indígena_hom + población_indígena_muj,
          poblacion_indigena = if_else(is.na(poblacion_indigena),
-                                      0, poblacion_indigena)) %>% 
+                                      0, poblacion_indigena),
+         tasa_indigena = poblacion_indigena/(total_muj + total_hom),
+         total_alumnado = total_muj + total_hom) %>% 
   select(cct, cve_ent, cve_mun, cve_loc, 
+         cve_turno, nom_turno,
+         total_alumnado, 
          contains("total_muj"), 
          contains("total_hom"),
          poblacion_indigena,
          suma_discapacidad,
-         tasa_discapacidad)
+         tasa_discapacidad,
+         tasa_indigena)
 
 caracterizacion
 
@@ -204,11 +223,22 @@ aprendizaje_basica <- read_excel_url(url, skip = 3) %>%
                 basica_matematicas_III_nacional = "III...49",
                 basica_matematicas_IV_nacional = "IV...50"
                 ) %>%
-  select(cct,turno,basica_grado_evaluado,
+  mutate(cve_turno =  if_else(turno=="MATUTINO",1,
+                            if_else(turno=="VESPERTINO",2,
+                                    # SEP eliminó tiempo completo en el ciclo 2018
+                                    # Tiempo completo ya no es un turno, es un atributo del centro de trabajo
+                                    # En este clean las pongo como tiempo completo
+                                    if_else(turno=="TIEMPO COMPLETO",1,
+                                            if_else(turno=="DISCONTINUO",4, NaN)))),
+         nom_turno= if_else(cve_turno==1,"MATUTINO",
+                            if_else(cve_turno==2,"VESPERTINO",
+                                    if_else(cve_turno==3,"NOCTURNO",
+                                            if_else(cve_turno==4,"DISCONTINUO", 'NA'))))) %>% 
+  select(cct, cve_turno, nom_turno,basica_grado_evaluado,
          basica_lenguaje_comunicacion_rep, basica_matematicas_rep,
          contains("basica"))
   # Nos quedamos por ahora solo con cve_turno 1
-
+aprendizaje_basica
 # Superior
 # Fuente: SEP
 # Nivel: cct
@@ -238,8 +268,19 @@ aprendizaje_superior <- read_excel_url(url, skip = 4) %>%
                 superior_matematicas_II_nacional = "II...50",
                 superior_matematicas_III_nacional = "III...51",
                 superior_matematicas_IV_nacional = "IV...52") %>%
+  mutate(cve_turno =  if_else(turno=="MATUTINO",1,
+                            if_else(turno=="VESPERTINO",2,
+                                    # SEP eliminó tiempo completo en el ciclo 2018
+                                    # Tiempo completo ya no es un turno, es un atributo del centro de trabajo
+                                    # En este clean las pongo como tiempo completo
+                                    if_else(turno=="TIEMPO COMPLETO",1,
+                                            if_else(turno=="DISCONTINUO",4, NaN)))),
+         nom_turno= if_else(cve_turno==1,"MATUTINO",
+                            if_else(cve_turno==2,"VESPERTINO",
+                                    if_else(cve_turno==3,"NOCTURNO",
+                                            if_else(cve_turno==4,"DISCONTINUO", 'NA'))))) %>%   
   select(cct,
-         turno,
+         cve_turno, nom_turno,
          superior_lenguaje_comunicacion_rep, 
          superior_matematicas_rep,
          contains("superior")) # %>% 
@@ -247,8 +288,8 @@ aprendizaje_superior <- read_excel_url(url, skip = 4) %>%
   # filter(turno=='MATUTINO')
 
 # Limpieza: Nos quedamos con la calificación sin importar si es basica o superior.
-aprendizaje_ambos <- full_join(select(aprendizaje_basica, -turno),
-                         select(aprendizaje_superior, -turno), by="cct") %>% 
+aprendizaje_ambos <- full_join(aprendizaje_basica,
+                         aprendizaje_superior, by=c("cct","cve_turno", "nom_turno")) %>% 
   mutate(rep_matematicas = if_else(is.na(basica_matematicas_rep),
                                    superior_matematicas_rep,"NO"),
          rep_lenguaje = if_else(is.na(basica_lenguaje_comunicacion_rep),
@@ -272,11 +313,14 @@ aprendizaje_ambos <- full_join(select(aprendizaje_basica, -turno),
                                   superior_lenguaje_c_III,
                                  basica_lenguaje_c_III)          
          ) %>% 
-  select(cct, rep_matematicas, rep_lenguaje,
+  select(cct, cve_turno,
+         # rep_matematicas, rep_lenguaje,
          starts_with("matematicas"),
          starts_with("lenguaje"))
   # drop multiple cct
-aprendizaje_ambos <- aprendizaje_ambos[!duplicated(aprendizaje_ambos$cct), ]
+# aprendizaje_ambos <- aprendizaje_ambos[!duplicated(aprendizaje_ambos$cct), ]
+
+# 2,415
 ```
 
 ### 2.1.3 Trayectoria Escolar
@@ -284,7 +328,7 @@ aprendizaje_ambos <- aprendizaje_ambos[!duplicated(aprendizaje_ambos$cct), ]
 ```{r, warning=FALSE, echo=TRUE, message=FALSE}
 trayectoria <- escuelas %>% 
   select(cct, cve_ent, cve_mun, cve_loc,
-         nivel,
+         nivel, cve_turno,
          contains("abandono_hom"),
          contains("abandono_muj"),
          contains("eficiencia_terminal_hom"),
@@ -323,7 +367,10 @@ rezago_municipal
 -  % DOCENTE CON LICENCIATURA O MÁS
 ```{r, warning=FALSE, echo=TRUE, message=FALSE}
 perfil <- escuelas %>% 
+  mutate(tot_docentes = tot_docente_muj + tot_docente_hom) %>% 
   select(cct, cve_ent, cve_mun, cve_loc,
+         cve_turno,
+         tot_docentes,
           pct_docente_hom, 
           tot_docente_muj, 
           tot_docente_hom, 
@@ -347,13 +394,25 @@ perfil
 ### 2.1 Final - Desempeño y Aprovechamiento Escolar
 ```{r, warning=FALSE, echo=TRUE, message=FALSE}
 desempeño <- full_join(caracterizacion,trayectoria,
-                       by=c("cve_ent","cve_mun","cve_loc","cct")) %>% 
-  full_join(aprendizaje_ambos, by=c("cct")) %>% 
+                       by=c("cve_ent","cve_mun","cve_loc","cct", "cve_turno")) %>% 
+  # 4940
+  full_join(aprendizaje_ambos, by=c("cct","cve_turno")) %>% 
   mutate(rep_matematicas =as_factor(rep_matematicas),
-         rep_lenguaje =as_factor(rep_lenguaje))
-
+         rep_lenguaje =as_factor(rep_lenguaje)) %>% 
+  select(-rep_matematicas,-rep_lenguaje)
 desempeño[is.na(desempeño)] <- NaN
 desempeño %>% write_rds("../../data/chihuahua/2_1_desempeño_cct.rds")
+
+desempeño %>% dplyr::count(rep_lenguaje)
+db_2_1_desempeño_cct %>% dplyr::count(rep_lenguaje)
+# linea_de_base %>% dplyr::count(rep_lenguaje)
+# linea_de_base %>% filter(nivel %in% c("preescolar", "primaria", "secundaria")) %>%
+#   dplyr::count(rep_lenguaje)
+
+# temp <- setdiff(desempeño$cct, aprendizaje_ambos$cct)
+# desempeño %>%  dplyr::count(nivel)
+# desempeño %>% filter(cct %in% temp) %>% dplyr::count(nivel)
+
 ```
 
 ### 2.2 Final - Agentes y recursos
@@ -365,7 +424,6 @@ perfil %>% write_rds("../../data/chihuahua/2_2_agentes_recursos_cct.rds")
 ### 2.2 Final - rezago_municipal
 rezago_municipal %>%
   write_rds("../../data/chihuahua/2_3_rezago_municipal_cve_muni.rds")
-
 
 ```
 
