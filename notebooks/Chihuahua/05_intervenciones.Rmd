@@ -62,7 +62,7 @@ id <- "19Wak5SB86p_QAqlBcIoP6mDeBq0xWVtx"
 url <-glue::glue(download_path)
 junta_aguas_poi <- read_excel_url(url) %>%
   mutate(cve_ent="08",
-         cve_mun=str_pad(`NUM. MPIO.`, 2, "left", "0"),
+         cve_mun=str_pad(`NUM. MPIO.`, 3, "left", "0"),
          cve_loc=str_pad(`NUM. LOC`, 4,"left","0")) %>% 
   select(contains("cve_"),
          poi_beneficiarios=`POBLACION BENEFICIADA`,
