@@ -1,48 +1,363 @@
 ---
-title: "estadísticas_basicas"
-output: html_document
+title: "Notebook de Limpieza y Estadísticas Básicas"
+author: "Roberto Sánchez Ávalos"
+date: "Julio 10, 2019"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+always_allow_html: yes
 ---
+   
 
-```{r setup, include=FALSE}
+
+```{r, warning=FALSE,  message=FALSE}
 source('../../utils.R')
 library(DataExplorer)
-linea_de_base <- read_rds("../../data/linea_de_base.rds")
-DataExplorer::introduce(linea_de_base)
+
+linea_de_base <- read_rds("../../data/linea_de_base_t.rds") %>% 
+  distinct()
+dim_colnames <- read_rds("../../data/dim_colnames.rds")
+as.table(t(DataExplorer::introduce(linea_de_base)))
+```
+
+
+# Introducción
+En este documento se realizará la estadistica descriptiva básica para implementar las últimas medidas de limpieza a las base de datos. Se comparte en formato RMD junto al código para obtener una mayor replicabilidad.
+
+- Se observa que 25 por ciento de las columnas son categóricas y 75 por ciento son continuas.
+- En la base de datos se tiene un 26% de valores faltantes, más adelante observaremos el tipo de variables en donde tenemos este fenómeno.
+
+```{r, warning=FALSE,  message=FALSE}
 plot_intro(linea_de_base)
 ```
 
-```{r}
-dim(linea_de_base)
+## Estadísticas Básicas
+
+Se genera EDA para hacer una revisión de estadística básica para identificar inconsistencias.
+
+#### Línea de Base
+
+
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% dplyr::group_by(nivel) %>% 
+  dplyr::summarize(Número_Escuelas = n(),
+                   Número_Alumnos = sum(total_alumnado, na.rm = T),
+                   Número_Docentes = sum(tot_docentes, na.rm = T)) %>% 
+  kable() %>%
+  kable_styling()
 ```
-```{r}
-# summary(linea_de_base)
+
+Identificamos que las escuelas que no tienen registro de nivel tampoco presentan conteo de alumnos ni de docentes. Esto es porque la base de datos de la que obtuvimos el nivel de SeeCh es la que tenía la variable de alumnos. (Ver notebooks/02_Educación/) De las tablas anteriores se decidió reducir el universo a aquellas  que presenten algún valor en la variable nivel esto porque buena parte de las variables se obtuvieron de SeeCH entonces tendrán valores nulos en todas las columnas.
+
+```{r, warning=FALSE, message=FALSE}
+unique(linea_de_base$nivel)
+linea_de_base <- linea_de_base %>% filter(nivel %in% c("preescolar", "primaria", "secundaria"))
+```
+
+#### INEE
+Para comparar el número de escuelas o planteles utilizaremos la información publicada por INEE en su documento Panorama Educativo de México (INEE, 2018)
+
+|  Nivel       | Número de Escuelas| Número de Alumnos | Número de Docentes|
+|--------------|:-----------------:|:-----------------:|:-----------------:|
+|Preescolar    | 2259              | 123156            | 5557              |
+|Primaria      |2834               |429694             |16908              |
+|Secundaria    |966                |190865             |10599              |
+Fuente: (INEE, 2018)
+
+
+- A nivel de número de escuelas no se encuentra una diferencia importante, 
+- Es importante notar que a nivel secundaria las escuelas que tienen doble turno cuentan doble, en el caso de escuelas preescolar y primaria la CCT considera el turno. 
+#### Línea de Base
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% dplyr::group_by(nivel, nom_turno) %>% 
+  dplyr::summarize(Número_Escuelas = n(),
+                   Número_Alumnos = sum(total_alumnado, na.rm = T),
+                   Número_Docentes = sum(tot_docentes, na.rm = T)) %>% 
+  kable() %>%
+  kable_styling()
 ```
 
 
-# Gráfica de Valores faltantes por variable
-```{r}
-plot_missing(linea_de_base)  + theme_grey(base_size = 5)
+# Valores Faltantes
+
+A continuación se realizará un análisis de valores faltantes, esto nos va a permitir identificar variables para las que tenemos muy poca información, esto junto a posteriores análisis de varianza nos permitirá analizar la importancia relativa de las variables y la información que nos podrán dar sobre el caso estudiado.
+
+## 01_Infraestructura
+
+### Análisis de Valores Faltantes
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% select(one_of(dim_colnames[["col_infraestructura"]])) %>% 
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Infraestructura",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom")))
+
+# Replace NA with 0
+linea_de_base[,dim_colnames[["col_infraestructura"]]] <- linea_de_base[,dim_colnames[["col_infraestructura"]]] %>% 
+  replace(., is.na(.), NA)
 ```
 
-## Generales
+* Para las variables de infraestructura se asume que si tiene NA significa que la escuela no cuenta con la infraestructura. 
+* La variable sistema de potabilización es la que tiene mayores missing values, se asume que NA significa que la escuela no cuenta con sistemas.
 
-Según - INEE, 2018
-Número de escuelas o planteles (2015-2016) 
-Preescolar 2259
-Primaria 2834
-Secundaria 966
-Media Superior 570
-- 6629
+### Gráfica de Variables Categóricas
 
-Número de alumnos (2015-2016)
-Preescolar 123156
-Primaria 429694
-Secundaria 190865 
-Media superior 149637
+```{r, warning=FALSE, message=FALSE}
+# Plot Categóricas
+linea_de_base %>% select(one_of(dim_colnames[["col_infraestructura"]])) %>% 
+  plot_bar(title = "Variables Categóricas",
+           ggtheme = theme_minimal(base_size = 8), theme_config = list(legend.position = c("bottom"),
+                                                       axis.text.x = element_text(angle = 40, size = 7),
+                                                       title= element_text(size = 9),
+                                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
 
-Número de docentes (2015-2016)
-Preescolar 5557
-Primaria 16908 
-Secundaria 10599
-Media Superior 7882
+### Gráfica de Variables Continuas
+
+```{r, warning=FALSE, message=FALSE}
+# Plot histograms
+linea_de_base %>% select(one_of(dim_colnames[["col_infraestructura"]])) %>% 
+  plot_histogram(title = "Variables Continuas",
+           ggtheme = theme_minimal(base_size = 9), theme_config = list(legend.position = c("bottom"),
+                                                       axis.text.x = element_text(angle = 40, size = 7),
+                                                       title= element_text(size = 9),
+                                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+
+## 02_Educación
+
+En el caso de educación, las variables de evaluación obtenidas de la fuente PLANEA tienen en muchos casos 53% de valores faltantes, esto se debe a que la evaluación solo existe para escuelas primarias. Nosotros preferimos esta evaluación ya que es una evaluación estandarizada pero se pueden agregar otras variables.
+
+En este caso mantenemos el NA y se recomienda solo hacer análisis a nivel primaria.
+
+Solo para las variables poblacion y tasa de alumnos indígenas hacemos imputación a cero si hay valores nulos
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% select(one_of(dim_colnames[["col_educacion"]])) %>% 
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Educación",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom")))
+
+# Replace NA with 0
+linea_de_base <- linea_de_base %>% 
+  tidyr::replace_na(list(tasa_indigena=0, poblacion_indigena=0))
+```
+### Gráfica de Variables Categóricas
+```{r, warning=FALSE, message=FALSE}
+# Plot Categóricas
+linea_de_base %>% select(one_of(dim_colnames[["col_educacion"]])) %>% 
+    plot_bar(title = "Variables Categóricas",
+             ggtheme = theme_minimal(base_size = 8), theme_config = list(legend.position = c("bottom"),
+                                                                         axis.text.x = element_text(angle = 40, size = 7),
+                                                                         title= element_text(size = 9),axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+### Gráfica de Variables Continuas
+
+```{r, warning=FALSE, message=FALSE}
+# Plot histograms
+linea_de_base %>% select(one_of(dim_colnames[["col_educacion"]])) %>%
+  plot_histogram(title = "Variables Continuas",
+                 ggtheme = theme_minimal(base_size = 9), theme_config = list(legend.position = c("bottom"),
+                                                                             axis.text.x = element_text(angle = 40, size = 7),
+                                                                             title= element_text(size = 9),
+                                                                             axis.text.y = element_text(angle = 40, size = 5)))
+
+```
+
+## 03_Riesgos
+
+Para el caso de riesgos asumimos que cuando no existan datos significa que no hay población afectada por lo que imputamos a cero.
+
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% select(one_of(dim_colnames[["col_riesgos"]])) %>% 
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Riesgos",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom")))
+
+# Replace NA with 0
+linea_de_base <- linea_de_base %>% 
+  tidyr::replace_na(list(pob_afect_fluor=0, pob_afect_arsenico=0))
+```
+### Gráfica de Variables Categóricas
+```{r, warning=FALSE, message=FALSE}
+# Plot Categóricas
+linea_de_base %>% select(one_of(dim_colnames[["col_riesgos"]])) %>% 
+  plot_bar(title = "Variables Categóricas",
+           ggtheme = theme_minimal(base_size = 8), theme_config = list(legend.position = c("bottom"),
+                                                                       axis.text.x = element_text(angle = 40, size = 7),
+                                                                       title= element_text(size = 9),
+                                                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+### Gráfica de Variables Continuas
+```{r, warning=FALSE, message=FALSE}
+# Plot histograms
+linea_de_base %>% select(one_of(dim_colnames[["col_riesgos"]])) %>% 
+    plot_histogram(title = "Variables Continuas",
+                   ggtheme = theme_minimal(base_size = 9), 
+                   theme_config = list(legend.position = c("bottom"),
+                                       axis.text.x = element_text(angle = 40, size = 7),
+                                       title= element_text(size = 9),
+                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+## 04_Salud
+
+Para el caso de morbilidad y mortalidad, la ausencia de estadísticas puede deberse a distintas razones. 
+Por ejemplo, es posible que el municipio en cuestión no tenga hospital por lo que sus habitantes con enfermedades relacionadas a WASH se atienden en municipios vecinos, otra razón podría ser que el hospital no cuente con el equipamiento o laboratorio necesario para identificar una enfermedad y la catalogue de forma erronea. 
+
+En este caso utilizaremos la tasa por cien mil habitantes para tener una estadística estandarizada que nos permita comparar municipios chicos con municipios grandes que se calcula dividiendo el número total de casos ocurridos en el muncipio entre la población total del municipio multiplicada por 100,000 habitantes.
+
+En el caso de que no existan datos imputaremos a cero.
+
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% select(one_of(dim_colnames[["col_salud"]])) %>% 
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Salud",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom")))
+
+# Replace NA with 0
+linea_de_base <- linea_de_base %>% 
+  tidyr::replace_na(list(tasa_morbilidad_relacionada=0, tasa_mortalidad_relacionada=0))
+```
+
+### Gráfica de Variables Categóricas
+```{r, warning=FALSE, message=FALSE}
+# Plot Categóricas
+linea_de_base %>% select(one_of(dim_colnames[["col_salud"]])) %>% 
+  plot_bar(title = "Variables Categóricas",
+           ggtheme = theme_minimal(base_size = 8),
+           theme_config = list(legend.position = c("bottom"),
+                               axis.text.x = element_text(angle = 40, size = 7),
+                               title= element_text(size = 9),
+                               axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+### Gráfica de Variables Continuas
+```{r, warning=FALSE, message=FALSE}
+# Plot histograms
+linea_de_base %>% select(one_of(dim_colnames[["col_salud"]])) %>% 
+    plot_histogram(title = "Variables Continuas",
+                   ggtheme = theme_minimal(base_size = 9),
+                   theme_config = list(legend.position = c("bottom"),
+                                       axis.text.x = element_text(angle = 40, size = 7),
+                                       title= element_text(size = 9),
+                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+
+## 05_Intervenciones
+
+Así mismo el caso de intervenciones asumimos que cuando no existan datos significa que no hay beneficiarios ni talleres por lo que imputamos a cero.
+
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% select(one_of(dim_colnames[["col_intervencion"]])) %>% 
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Intervenciones",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom")))
+
+
+# Replace NA with 0
+linea_de_base <- linea_de_base %>% 
+  tidyr::replace_na(list(poi_operacion=0, poi_num=0, poi_beneficiarios=0, 
+                         dif_beneficiarios=0,dif_modalidad="n.d", 
+                         talleres=0))
+```
+
+### Gráfica de Variables Categóricas
+```{r, warning=FALSE, message=FALSE}
+# Plot Categóricas
+linea_de_base %>% select(one_of(dim_colnames[["col_intervencion"]])) %>% 
+    plot_bar(title = "Variables Categóricas",
+             ggtheme = theme_minimal(base_size = 8),
+             theme_config = list(legend.position = c("bottom"),
+                                 axis.text.x = element_text(angle = 40, size = 7),
+                                 title= element_text(size = 9),axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+### Gráfica de Variables Continuas
+```{r, warning=FALSE, message=FALSE}
+# Plot histograms
+linea_de_base %>% select(one_of(dim_colnames[["col_intervencion"]])) %>% 
+    plot_histogram(title = "Variables Continuas",
+                   ggtheme = theme_minimal(base_size = 9),
+                   theme_config = list(legend.position = c("bottom"),
+                                       axis.text.x = element_text(angle = 40, size = 7),
+                                       title= element_text(size = 9),
+                                       axis.text.y = element_text(angle = 40, size = 5)))
+```
+
+## Valores Faltantes Final
+
+Nos quedamos con la siguiente base de datos:
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>%
+  plot_missing(group = list(Excelente = 0.05, Bueno = 0.4, Malo = 0.8, Eliminar = 1), 
+               geom_label_args = list(), title = "Gráfica de Porcentaje Valores Faltantes - Intervenciones",
+               ggtheme = theme_gray(), theme_config = list(legend.position = c("bottom"), 
+                                                           axis.text.x = element_text(angle = 40, size = 10),
+                                                           axis.text.y = element_text(angle = 40, size = 5)))
+
+```
+
+
+# Análisis de Correlaciones
+
+Realizamos un Análisis base de Correlaciones.
+
+## Para variables Categóricas 
+Se aplica para las variables categóricas
+```{r, warning=FALSE, message=FALSE}
+plot_correlation(na.omit(linea_de_base), 
+                 type = c("c"), cor_args = list(), geom_text_args = list(),
+  title = NULL, ggtheme = theme_gray(),
+  theme_config = list(legend.position = "bottom", 
+                      axis.text.x = element_text(angle = 40, size = 5),
+                      axis.text.y = element_text(size = 5)))
+```
+
+## Para Variables Continuas
+```{r, warning=FALSE, message=FALSE}
+
+plot_correlation(na.omit(linea_de_base), 
+                 type = c("d"),
+  maxcat = 20L, cor_args = list(), geom_text_args = list(),
+  title = NULL, ggtheme = theme_gray(),
+  theme_config = list(legend.position = "bottom", 
+                      axis.text.x = element_text(angle = 40, size = 5),
+                      axis.text.y = element_text(size = 5)))
+
+
+```
+
+# Exportar
+```{r, warning=FALSE, message=FALSE}
+linea_de_base %>% 
+  write_rds("../../data/linea_de_base.rds")
+
+linea_de_base  %>%
+  mutate_if(is.numeric, round,2) %>% 
+  write.xlsx("../../data/linea_de_base.xlsx", sheetName = "Línea de Base")
+
+linea_de_base[ is.na(linea_de_base) ] <- NA
+linea_de_base[linea_de_base== "n.d"] <- NA
+linea_de_base  %>%
+  mutate_if(is.numeric, round,2) %>% 
+  write_csv("../../data/linea_de_base.csv")
+
+
+diccionario <- as.data.frame(diccionario_variables) %>% 
+  rownames_to_column("Variable") %>% 
+  dplyr::rename(Nombre=diccionario_variables) 
+
+# Cambiar 
+diccionario_t <- diccionario[match(names(diccionario_variables), diccionario$Variable),]
+
+diccionario_t %>%
+  write.xlsx("../../data/linea_de_base_diccionario.xlsx", sheetName = "Diccionario", append=T)
+
+
+```
 

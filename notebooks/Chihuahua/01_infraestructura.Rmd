@@ -21,7 +21,6 @@ download_path <- 'https://drive.google.com/uc?export=download&id={id}'
 ```
 
 ## 1.1 Infraestructura de Establecimientos Escolares
-
 ### 1.1.1 Servicio básico de agua para consumo
 
 Preguntas Base:
@@ -43,7 +42,8 @@ consumo <- read_csv(url) %>%
   mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
          cve_loc = str_pad(cvelocalidad,4,'left','0'),
          cve_ent = '08') %>%
-  select(cve_ent, cve_mun, cve_loc,
+  select(latitud, longitud,
+         cve_ent, cve_mun, cve_loc,
          cct,cveturno, 
          
          # Abastecimiento de Agua al Plantel
@@ -68,7 +68,9 @@ consumo <- read_csv(url) %>%
          aguaabasotro, # Otro
          aguaabasotrodetalle) %>% # Otro, detalle
   # Filtramos por cveturno 1 ya que es infraestructura y debería de coincidir
-  filter(cveturno==1) %>% distinct() 
+  # filter(cveturno==1) %>% 
+  select(-cveturno) %>% 
+  distinct() 
 
 consumo %>% 
   select(cve_ent:cct, aguaredpublica:aguaotrodetalle) %>% 
@@ -108,7 +110,8 @@ consumo <- consumo %>%
                                   "otro")) %>% 
   select(cve_ent:cct, abastecimiento, # aguaotrodetalle
          sistemapotabilizacion,
-         almacenamiento) #aguaabasotrodetalle
+         almacenamiento, #aguaabasotrodetalle
+         latitud, longitud) 
 
 nrow(consumo)
 length(unique(consumo$cct))
@@ -205,9 +208,14 @@ id <- '1iIQbdszvWGZxIJpiH_IEgblbY5bodOSA'
 letrinas <- read_excel_url(glue::glue(download_path)) %>%
   mutate(cve_mun = str_pad(cvemunicipio,3,'left','0'), 
          cve_loc = str_pad(cvelocalidad,4,'left','0'),
-         cve_ent = '08') %>%  
+         cve_ent = '08',
+         nivel_letrinas = if_else(cvenivel=='PRE', 'preescolar',
+                                  if_else(cvenivel=='PRI',"primaria",
+                                          if_else(cvenivel=='SEC',"secundaria","na")
+                                          )
+                                  )) %>%  
   select(cct, 
-         cve_mun, cve_loc, cve_ent,
+         cve_mun, cve_loc, cve_ent,nivel_letrinas,
          cuenta_con_agua=agua, 
          ServSan_Total, # Número total de Servicios Sanitarios 
          Letrinas_Total) %>% # Número total de Letrinas
@@ -299,6 +307,7 @@ infra_muni <- read_csv(url,locale = readr::locale(encoding = "latin1")) %>%
 # Unión y Bases finales - Dimensión Infraestructura
 
 ### 1.1 Final: Infraestructura de Establecimientos Escolares
+Esta tabla es el goldstandard de ccts
 ```{r, warning=FALSE, echo=TRUE, message=FALSE}
 # Nivel: cct
 infra_escolar <- full_join(consumo,bebederos, 
